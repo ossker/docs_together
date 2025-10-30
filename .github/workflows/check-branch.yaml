@@ -1,0 +1,25 @@
+name: Check Branch Up-to-Date
+
+on:
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  check-branch:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Out Code
+      uses: actions/checkout@v2
+
+    - name: Merge Master
+      run: |
+        git remote update
+        if git merge-base --is-ancestor origin/master ${{ github.event.pull_request.head.sha }}; then
+          echo "Branch is up to date with master"
+        else
+          echo "Branch is not up to date with master"
+          echo "Please rebase your branch with master and push again."
+          exit 1
+        fi
