@@ -34,3 +34,9 @@ Jeśli zapiszesz zależności w pliku requirements.txt, inni mogą łatwo odtwor
 pip install -r requirements.txt
 ```
 
+Uruchom serwer ASGI:
+```bash
+daphne docs_together.asgi:application
+```
+
+
