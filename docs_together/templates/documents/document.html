@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+SIEMKADokument
+{% endblock %}
+
+{% block extrahead %}
+<link rel="stylesheet" href="{% static 'css/document.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<p class="test">TEST CSS</p>
+
+<textarea id="editor" rows="20" cols="80">
+
+</textarea>
+
+<div id="chat">
+    <div id="chatBox"></div>
+    <input id="chatInput" placeholder="Napisz wiadomość">
+    <button id="sendBtn">Wyślij</button>
+</div>
+
+{% endblock %}
+
+{% block domready %}
+    const docId = 1;
+    const ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
+    const socket = new WebSocket(`${ws_scheme}://${window.location.host}/ws/doc/${docId}/`);
+
+    socket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        if (data.message_type === 'edit') {
+            $('#editor').val(data.content);
+        } else if (data.message_type === 'chat') {
+            $('#chatBox').append(`<p><b>${data.user}:</b> ${data.content}</p>`);
+        }
+    };
+
+    $('#editor').on('input', function() {
+        socket.send(JSON.stringify({ type: 'edit', content: $(this).val() }));
+    });
+
+    $('#sendBtn').click(function() {
+        const message = $('#chatInput').val();
+        socket.send(JSON.stringify({ type: 'chat', content: message }));
+        $('#chatInput').val('');
+    });
+
+{% endblock %}
