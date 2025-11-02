@@ -6,12 +6,47 @@ Dokumenty
 {% endblock %}
 
 {% block content %}
-
-<h1>Dokumenty</h1>
+<h1>Moje Dokumenty</h1>
 <ul>
-    {% for document in documents %}
-    <li><a href="/documents/{{ document.id }}">{{ document.title }}</a></li>
+    {% for document in owned_documents %}
+        <li>
+            <a href="/documents/{{ document.id }}">{{ document.title }}</a><br>
+
+            <button class="invite-btn" data-doc-id="{{ document.id }}">Generuj jednorazowy link</button>
+            <input type="text" class="invite-link" readonly style="width: 80%;">
+
+            <div>
+                <strong>Współtwórcy:</strong>
+                {% for user in document.collaborators.all %}
+                    <p>{{ user.first_name }} {{ user.last_name }}</p>
+                {% empty %}
+                    brak współtwórców
+                {% endfor %}
+            </div>
+        </li>
     {% endfor %}
 </ul>
 
+<h1>Współtworzone dokumenty</h1>
+<ul>
+    {% for document in shared_documents %}
+        <li><a href="/documents/{{ document.id }}">{{ document.title }}</a></li>
+    {% empty %}
+        <li>Brak współtworzonych dokumentów.</li>
+    {% endfor %}
+</ul>
+{% endblock %}
+
+{% block domready %}
+$(".invite-btn").on("click", function() {
+    const btn = $(this);
+    const docId = btn.data("doc-id");
+    const linkInput = btn.siblings(".invite-link");
+
+    $.get(`/documents/${docId}/invite/`, function(data) {
+        linkInput.val(data.invite_link);
+    }).fail(function() {
+        alert("Błąd podczas generowania linku.");
+    });
+});
 {% endblock %}

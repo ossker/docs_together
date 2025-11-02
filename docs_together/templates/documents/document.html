@@ -26,7 +26,7 @@
 {% endblock %}
 
 {% block domready %}
-    const docId = 1;
+    const docId = "{{ document.id }}";
     const ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
     const socket = new WebSocket(`${ws_scheme}://${window.location.host}/ws/doc/${docId}/`);
 
