@@ -39,4 +39,10 @@ Uruchom serwer ASGI:
 daphne docs_together.asgi:application
 ```
 
+```bash
+python manage.py makemigrations
+```
 
+```bash
+python manage.py migrate
+```
