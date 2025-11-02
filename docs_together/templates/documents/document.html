@@ -7,15 +7,40 @@
 
 {% block extrahead %}
 <link rel="stylesheet" href="{% static 'css/document.css' %}">
+<style>
+  .doc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  textarea#editor, textarea#ai-output {
+    width: 100%;
+    height: 420px;
+    box-sizing: border-box;
+    font-family: monospace;
+    font-size: 14px;
+  }
+  .actions { margin: 12px 0 20px; }
+</style>
 {% endblock %}
 
 {% block content %}
 
 <p class="test">{{ document.title }}</p>
 
-<textarea id="editor" rows="20" cols="80">
-{{ document.content }}
-</textarea>
+<div class="actions">
+  <button id="summarizeBtn">PODSUMUJ</button>
+  <span id="ai-status" style="margin-left:10px;color:#666;"></span>
+</div>
+
+<div class="doc-grid">
+  <!-- LEWA kolumna: edytowany tekst dokumentu -->
+  <textarea id="editor" rows="20" cols="80">{{ document.content }}</textarea>
+
+  <!-- PRAWA kolumna: wynik AI -->
+  <textarea id="ai-output" placeholder="Tutaj pojawi się podsumowanie…" readonly></textarea>
+</div>
 
 <div id="chat">
     <div id="chatBox"></div>
@@ -26,7 +51,7 @@
 {% endblock %}
 
 {% block domready %}
-    const docId = 1;
+    const docId = 1;  // jeśli masz dynamiczne ID, podstaw z backendu
     const ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
     const socket = new WebSocket(`${ws_scheme}://${window.location.host}/ws/doc/${docId}/`);
 
@@ -49,4 +74,51 @@
         $('#chatInput').val('');
     });
 
+    // ---------- AI: PODSUMUJ ----------
+    function getCookie(name) {
+      const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+      return m ? m.pop() : '';
+    }
+
+    const summarizeBtn = document.getElementById('summarizeBtn');
+    const editor = document.getElementById('editor');
+    const output = document.getElementById('ai-output');
+    const statusEl = document.getElementById('ai-status');
+
+    summarizeBtn.addEventListener('click', async () => {
+      const text = editor.value.trim();
+      if (!text) {
+        console.warn('[AI] Pusty tekst – nic nie wysyłam');
+        return;
+      }
+      statusEl.textContent = 'Podsumowuję…';
+      summarizeBtn.disabled = true;
+
+      try {
+        const url = window.location.pathname.replace(/\/$/, '') + '/ai/summarize';
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: JSON.stringify({ text })
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+          console.log('[AI] Odpowiedź Gemini:', data.result);
+          output.value = data.result;
+        } else {
+          console.error('[AI] Błąd serwera:', data);
+          output.value = 'Błąd podczas podsumowania. Szczegóły w konsoli.';
+        }
+      } catch (err) {
+        console.error('[AI] Błąd sieci:', err);
+        output.value = 'Błąd sieci. Sprawdź konsolę.';
+      } finally {
+        summarizeBtn.disabled = false;
+        statusEl.textContent = '';
+      }
+    });
 {% endblock %}
