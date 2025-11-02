@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+Rejestracja
+{% endblock %}
+
+{% block content %}
+
+<h1>Rejestracja</h1>
+<form method="post" action="/accounts/register">
+    {% csrf_token %}
+    {{ form }}
+    <button type="submit">Submit</button>
+</form>
+
+{% endblock %}

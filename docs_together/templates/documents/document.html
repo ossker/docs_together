@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block title %}
-SIEMKADokument
+{{ document.title }}
 {% endblock %}
 
 {% block extrahead %}
@@ -11,10 +11,10 @@ SIEMKADokument
 
 {% block content %}
 
-<p class="test">TEST CSS</p>
+<p class="test">{{ document.title }}</p>
 
 <textarea id="editor" rows="20" cols="80">
-
+{{ document.content }}
 </textarea>
 
 <div id="chat">
