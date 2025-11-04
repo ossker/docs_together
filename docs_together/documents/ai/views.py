@@ -4,8 +4,9 @@ import requests
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
+from django.utils import timezone
 from documents.decorators import owner_or_collaborator_required
-from documents.models import Document, DocumentAiSummary
+from documents.models import Document
 from django.utils import timezone
 
 def call_gemini_api(text):
@@ -40,17 +41,10 @@ def summarize(request, document_id):
 
         result = call_gemini_api(text)
 
-        document = Document.objects.get(id=document_id)
-
-        DocumentAiSummary.objects.update_or_create(
-            document=document,
-            defaults={
-                "summary_text": result,
-                "updated_by": request.user,
-                "updated_at": timezone.now(),
-                "created_at": timezone.now(),
-            },
-        )
+        doc = Document.objects.get(id=document_id)
+        doc.summary_text = result
+        doc.date_edited = timezone.now()
+        doc.save(update_fields=["summary_text", "date_edited"])
 
         return JsonResponse({"ok": True, "result": result})
     except Exception as e:
