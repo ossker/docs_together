@@ -4,10 +4,8 @@ import requests
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
-from django.utils import timezone
 from documents.decorators import owner_or_collaborator_required
 from documents.models import Document
-from django.utils import timezone
 
 def call_gemini_api(text):
     api_key = "AIzaSyAgrXmDDpajd326Hz_Eo_GuYf1Ixy1q1vk"
@@ -33,20 +31,18 @@ def call_gemini_api(text):
 @owner_or_collaborator_required
 @require_POST
 def summarize(request, document_id):
+    data = json.loads(request.body or "{}")
+    text = (data.get("text") or "").strip()
+    if not text:
+        return JsonResponse({"ok": False, "error": "empty_text"}, status=400)
+
     try:
-        data = json.loads(request.body or "{}")
-        text = (data.get("text") or "").strip()
-        if not text:
-            return JsonResponse({"ok": False, "error": "empty_text"}, status=400)
-
         result = call_gemini_api(text)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Błąd komunikacji z API"}, status=500)
 
-        doc = Document.objects.get(id=document_id)
-        doc.summary_text = result
-        doc.date_edited = timezone.now()
-        doc.save(update_fields=["summary_text", "date_edited"])
+    doc = Document.objects.get(id=document_id)
+    doc.summary_text = result
+    doc.save(update_fields=["summary_text"])
 
-        return JsonResponse({"ok": True, "result": result})
-    except Exception as e:
-        import logging; logging.getLogger(__name__).exception("AI summarize error")
-        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+    return JsonResponse({"ok": True, "result": result})
