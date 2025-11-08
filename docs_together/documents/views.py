@@ -3,6 +3,8 @@ from django.contrib.auth.decorators import login_required
 from .decorators import owner_or_collaborator_required, owner_required
 from .models import Document, DocumentInvitation
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
 
 
 @login_required
@@ -47,4 +49,19 @@ def join_document(request, token):
     invitation.used = True
     invitation.save()
 
-    return redirect("document:document", doc_id=document.id)
+    return redirect("documents:document", doc_id=document.id)
+
+
+@csrf_exempt
+@login_required
+def save_document(request, document_id):
+    if request.method == "POST":
+        document = Document.objects.get(id=document_id)
+        if document.owner == request.user or request.user in document.collaborators.all():
+            document.content = request.POST.get("content", "")
+            document.date_edited = timezone.now()
+            document.save(update_fields=["content", "date_edited"])
+            return JsonResponse({"status": "ok"})
+        else:
+            return JsonResponse({"error": "permission denied"}, status=403)
+    return JsonResponse({"error": "invalid method"}, status=405)

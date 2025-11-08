@@ -25,8 +25,6 @@
   <!-- PRAWA kolumna: wynik AI -->
   <textarea id="ai-output" placeholder="Tutaj pojawi się podsumowanie…" readonly></textarea>
 </div>
-
-{{ document.content }}
 </textarea>
 
 <div id="chat">
@@ -108,5 +106,45 @@
         statusEl.textContent = '';
       }
     });
+
+let saveTimeout;
+let lastSavedContent = $('#editor').val();
+const saveUrl = window.location.pathname.replace(/\/$/, '') + `/save`;
+const csrfToken = '{{ csrf_token }}';
+
+function saveDocument(content) {
+    $.ajax({
+        url: saveUrl,
+        method: 'POST',
+        data: {
+            content: content,
+            csrfmiddlewaretoken: csrfToken,
+        },
+        success: function() {
+            console.log("💾 Document autosaved at " + new Date().toLocaleTimeString());
+            lastSavedContent = content;
+        },
+        error: function() {
+            console.warn("⚠️ Failed to autosave document");
+        }
+    });
+}
+
+$('#editor').on('input', function() {
+    const content = $(this).val();
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => saveDocument(content), 3000);
+});
+
+window.addEventListener('beforeunload', function (e) {
+    const currentContent = $('#editor').val();
+    if (currentContent !== lastSavedContent) {
+        navigator.sendBeacon(saveUrl, new URLSearchParams({
+            content: currentContent,
+            csrfmiddlewaretoken: csrfToken
+        }));
+    }
+});
+
 
 {% endblock %}
