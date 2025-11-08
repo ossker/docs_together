@@ -14,6 +14,7 @@ class Document(models.Model):
     collaborators = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='shared_documents')
     date_created = models.DateTimeField(default=timezone.now)
     date_edited = models.DateTimeField(default=timezone.now)
+    summary_text = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f'"{self.title}" by {self.owner}'

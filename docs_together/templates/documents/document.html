@@ -13,7 +13,19 @@
 
 <p class="test">{{ document.title }}</p>
 
-<textarea id="editor" rows="20" cols="80">
+<div class="actions">
+  <button id="summarizeBtn">PODSUMUJ</button>
+  <span id="ai-status" style="margin-left:10px;color:#666;"></span>
+</div>
+
+<div class="doc-grid">
+  <!-- LEWA kolumna: edytowany tekst dokumentu -->
+  <textarea id="editor" rows="20" cols="80">{{ document.content }}</textarea>
+
+  <!-- PRAWA kolumna: wynik AI -->
+  <textarea id="ai-output" placeholder="Tutaj pojawi się podsumowanie…" readonly></textarea>
+</div>
+
 {{ document.content }}
 </textarea>
 
@@ -47,6 +59,54 @@
         const message = $('#chatInput').val();
         socket.send(JSON.stringify({ type: 'chat', content: message }));
         $('#chatInput').val('');
+    });
+
+    // ---------- AI: PODSUMUJ ----------
+    function getCookie(name) {
+      const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+      return m ? m.pop() : '';
+    }
+
+    const summarizeBtn = document.getElementById('summarizeBtn');
+    const editor = document.getElementById('editor');
+    const output = document.getElementById('ai-output');
+    const statusEl = document.getElementById('ai-status');
+
+    summarizeBtn.addEventListener('click', async () => {
+      const text = editor.value.trim();
+      if (!text) {
+        console.warn('[AI] Pusty tekst – nic nie wysyłam');
+        return;
+      }
+      statusEl.textContent = 'Podsumowuję…';
+      summarizeBtn.disabled = true;
+
+      try {
+        const url = window.location.pathname.replace(/\/$/, '') + '/ai/summarize';
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: JSON.stringify({ text })
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+          console.log('[AI] Odpowiedź Gemini:', data.result);
+          output.value = data.result;
+        } else {
+          console.error('[AI] Błąd serwera:', data);
+          output.value = 'Błąd podczas podsumowania. Szczegóły w konsoli.';
+        }
+      } catch (err) {
+        console.error('[AI] Błąd sieci:', err);
+        output.value = 'Błąd sieci. Sprawdź konsolę.';
+      } finally {
+        summarizeBtn.disabled = false;
+        statusEl.textContent = '';
+      }
     });
 
 {% endblock %}
