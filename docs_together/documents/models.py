@@ -38,3 +38,17 @@ class DocumentInvitation(models.Model):
 
     def __str__(self):
         return f"Invite to {self.document.title} ({self.token})"
+
+
+class ChatMessage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    document = models.ForeignKey('documents.Document', on_delete=models.CASCADE, related_name='chat_messages')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    content = models.TextField()
+    timestamp = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['timestamp']
+
+    def __str__(self):
+        return f"[{self.timestamp:%H:%M}] {self.user.first_name}: {self.content[:30]}"
