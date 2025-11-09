@@ -28,7 +28,14 @@
 </textarea>
 
 <div id="chat">
-    <div id="chatBox"></div>
+    <div id="chatBox">
+        {% for msg in chat_history %}
+            <p><b>{{ msg.user.first_name }}:</b> {{ msg.content }}</p>
+        {% empty %}
+            <p><i>Brak wiadomości.</i></p>
+        {% endfor %}
+    </div>
+
     <input id="chatInput" placeholder="Napisz wiadomość">
     <button id="sendBtn">Wyślij</button>
 </div>
@@ -40,12 +47,18 @@
     const ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
     const socket = new WebSocket(`${ws_scheme}://${window.location.host}/ws/doc/${docId}/`);
 
+    function appendMessage(user, text) {
+        $('#chatBox').append(`<p><b>${user}:</b> ${text}</p>`);
+        const box = document.getElementById('chatBox');
+        box.scrollTop = box.scrollHeight;
+    }
+
     socket.onmessage = function(e) {
         const data = JSON.parse(e.data);
         if (data.message_type === 'edit') {
             $('#editor').val(data.content);
         } else if (data.message_type === 'chat') {
-            $('#chatBox').append(`<p><b>${data.user}:</b> ${data.content}</p>`);
+            appendMessage(data.user, data.content);
         }
     };
 

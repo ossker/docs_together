@@ -5,7 +5,7 @@ from .models import Document, DocumentInvitation
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-
+from django.core.exceptions import PermissionDenied
 
 @login_required
 def documents_view(request):
@@ -20,7 +20,8 @@ def documents_view(request):
 @owner_or_collaborator_required
 def document_view(request, document_id):
     document = Document.objects.get(pk=document_id)
-    return render(request, 'documents/document.html', {'document': document})
+    chat_history = document.chat_messages.select_related('user').all()
+    return render(request, 'documents/document.html', {'document': document, 'chat_history': chat_history,})
 
 
 @login_required
@@ -54,6 +55,7 @@ def join_document(request, token):
 
 @csrf_exempt
 @login_required
+@owner_or_collaborator_required
 def save_document(request, document_id):
     if request.method == "POST":
         document = Document.objects.get(id=document_id)
