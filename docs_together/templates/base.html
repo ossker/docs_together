@@ -2,37 +2,35 @@
 <!DOCTYPE html>
 <html>
 <head>
- <meta charset="utf-8" />
-     <title>
-         {% block title %}
+    <meta charset="utf-8" />
+    <title>
+        {% block title %}
             DocsTogether
-         {% endblock %}
-     </title>
+        {% endblock %}
+    </title>
     <link href="{% static 'css/base.css' %}" rel="stylesheet">
 
     {% block extrahead %}
     {% endblock %}
-
 </head>
 
 <body>
- <div id="header">
-     <a class="logo" href="/documents">DocsTogether</a>
- </div>
+    <header id="header">
+        <a class="logo" href="/documents">DocsTogesther</a>
+    </header>
 
- <div id="content">
+    <div id="content">
+        {% block content %}
+        {% endblock %}
+    </div>
 
- {% block content %}
- {% endblock %}
-
- </div>
-
- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
- <script>
- $(document).ready(function() {
- {% block domready %}
- {% endblock %}
- });
- </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="{% static 'js/script.js' %}"></script>
+    <script>
+    $(document).ready(function() {
+        {% block domready %}
+        {% endblock %}
+    });
+    </script>
 </body>
 </html>

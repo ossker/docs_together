@@ -1,3 +1,30 @@
-.logo{
-    color: green;
+body {
+  margin: 0;
+  font-family: "Poppins", sans-serif;
+  background-color: #f0f2f5;
+}
+
+#header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+  height: 60px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+}
+
+#header .logo {
+  font-size: 22px;
+  font-weight: 600;
+  color: #0c66e4;
+  text-decoration: none;
+}
+
+#content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 50px;
 }
