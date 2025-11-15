@@ -115,7 +115,10 @@
     </div>
 
   <div class="right-sidebar">
-
+        <div id="presence-panel">
+                <h4>Online:</h4>
+                <ul id="presence-users"></ul>
+            </div>
         <div id="chat">
             <div id="chatBox">
                 {% for msg in chat_history %}
@@ -128,13 +131,6 @@
                 <input id="chatInput" placeholder="Napisz wiadomość">
                 <button id="sendBtn"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
-        </div>
-
-        <div id="ai-tools">
-            <h3>Asystent AI</h3>
-            <button id="summarizeBtn">PODSUMUJ</button>
-            <span id="ai-status"></span>
-            <textarea id="ai-output" placeholder="Tutaj pojawi się podsumowanie…" readonly></textarea>
         </div>
 
     </div>
@@ -181,7 +177,10 @@
     }
 
     function appendMessage(user, text) {
-        $('#chatBox').append(`<p><b>${user}:</b> ${text}</p>`);
+        console.log(
+        const isSelf = user === "{{ request.user.first_name }}";  // lub użyj username jeśli chcesz
+        const messageClass = isSelf ? "self" : "other";
+        $('#chatBox').append(`<p class="${messageClass}"><b>${user}:</b> ${text}</p>`);
         const box = document.getElementById('chatBox');
         box.scrollTop = box.scrollHeight;
     }
@@ -231,6 +230,16 @@
         });
         } else if (data.message_type === 'chat') {
             appendMessage(data.user, data.content);
+        }
+        else if (data.message_type === "presence") {
+            const list = document.getElementById("presence-users");
+            list.innerHTML = "";
+            data.users.forEach(user => {
+                const li = document.createElement("li");
+                li.textContent = user;
+                list.appendChild(li);
+            });
+            return;
         }
     };
 
