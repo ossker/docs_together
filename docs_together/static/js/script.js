@@ -284,5 +284,3 @@ writingArea.addEventListener("drop", (e) => {
     checkPageOverflow({ target: draggedWrapper });
   }, 50);
 });
-
-window.addEventListener("load", initializer);
