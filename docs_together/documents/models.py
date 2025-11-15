@@ -15,6 +15,8 @@ class Document(models.Model):
     date_created = models.DateTimeField(default=timezone.now)
     date_edited = models.DateTimeField(default=timezone.now)
     summary_text = models.TextField(blank=True, null=True)
+    summary_pending = models.BooleanField(default=False)
+    summary_updated_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f'"{self.title}" by {self.owner}'

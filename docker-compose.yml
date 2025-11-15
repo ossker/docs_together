@@ -1,0 +1,52 @@
+services:
+  django:
+    build: .
+    command: daphne -b 0.0.0.0 -p 8000 docs_together.asgi:application
+    volumes:
+      - ./docs_together:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    ports:
+      - "8000:8000"
+
+  celery_worker:
+    build: .
+    command: celery -A docs_together worker -l info
+    volumes:
+      - ./docs_together:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - django
+
+  celery_beat:
+    build: .
+    command: celery -A docs_together beat -l info
+    volumes:
+      - ./docs_together:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - django
+
+  flower:
+    build: .
+    command: celery -A docs_together flower --port=5555
+    volumes:
+      - ./docs_together:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - django
+    ports:
+      - "5555:5555"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
