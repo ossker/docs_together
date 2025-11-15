@@ -151,125 +151,117 @@
     const ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
     const socket = new WebSocket(`${ws_scheme}://${window.location.host}/ws/doc/${docId}/`);
 
+    let saveTimeout;
+    let lastSavedContent = writingArea.innerHTML;
+    const saveUrl = window.location.pathname.replace(/\/$/, '') + `/save`;
+    const csrfToken = '{{ csrf_token }}';
+
+    function saveSelection() {
+        const sel = window.getSelection();
+        if (sel.rangeCount > 0) {
+            return sel.getRangeAt(0);
+        }
+        return null;
+    }
+
+    function restoreSelection(range) {
+        if (!range) return;
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
+    function getDocumentContent() {
+        const pages = writingArea.querySelectorAll(".page");
+        let content = "";
+        pages.forEach(page => {
+            content += page.innerHTML; // tylko wnętrze strony
+        });
+        return content;
+    }
+
     function appendMessage(user, text) {
         $('#chatBox').append(`<p><b>${user}:</b> ${text}</p>`);
         const box = document.getElementById('chatBox');
         box.scrollTop = box.scrollHeight;
     }
 
+    function saveDocument(content) {
+        $.ajax({
+            url: saveUrl,
+            method: 'POST',
+            data: {
+                content: content,
+                csrfmiddlewaretoken: csrfToken,
+            },
+            success: function() {
+                console.log("💾 Document autosaved at " + new Date().toLocaleTimeString());
+                lastSavedContent = content;
+            },
+            error: function() {
+                console.warn("⚠️ Failed to autosave document");
+            }
+        });
+    }
+
+    writingArea.addEventListener("input", () => {
+        const currentContent = writingArea.innerHTML;
+        socket.send(JSON.stringify({
+                type: "update_content",
+                content: currentContent
+        }));
+
+    });
     socket.onmessage = function(e) {
         const data = JSON.parse(e.data);
-        if (data.message_type === 'edit') {
-            $('#editor').val(data.content);
+        if (data.message_type === 'update_content') {
+            const currentRange = saveSelection();
+            const parser = new DOMParser();
+            const newDoc = parser.parseFromString(data.content, "text/html");
+            const newPages = newDoc.body.childNodes;
+
+            const pages = writingArea.querySelectorAll(".page");
+            pages.forEach((page, index) => {
+            const newPageContent = newPages[index] ? newPages[index].innerHTML : "";
+            if (page.innerHTML !== newPageContent) {
+                const sel = saveSelection();
+                page.innerHTML = newPageContent;
+                restoreSelection(sel);
+            }
+        });
         } else if (data.message_type === 'chat') {
             appendMessage(data.user, data.content);
         }
     };
-
-    $('#editor').on('input', function() {
-        socket.send(JSON.stringify({ type: 'edit', content: $(this).val() }));
-    });
 
     $('#sendBtn').click(function() {
         const message = $('#chatInput').val();
         socket.send(JSON.stringify({ type: 'chat', content: message }));
         $('#chatInput').val('');
     });
-    
-    // Dodajemy obsługę wysyłania po wciśnięciu Enter
+
     $('#chatInput').on('keypress', function(e) {
         if (e.which === 13) { // 13 to kod klawisza Enter
             $('#sendBtn').click();
         }
     });
 
-    // ---------- AI: PODSUMUJ ----------
-    function getCookie(name) {
-      const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-      return m ? m.pop() : '';
-    }
 
-    const summarizeBtn = document.getElementById('summarizeBtn');
-    const editor = document.getElementById('editor');
-    const output = document.getElementById('ai-output');
-    const statusEl = document.getElementById('ai-status');
-
-    summarizeBtn.addEventListener('click', async () => {
-      const text = editor.value.trim();
-      if (!text) {
-        console.warn('[AI] Pusty tekst – nic nie wysyłam');
-        return;
-      }
-      statusEl.textContent = 'Podsumowuję…';
-      summarizeBtn.disabled = true;
-
-      try {
-        const url = window.location.pathname.replace(/\/$/, '') + '/ai/summarize';
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-          },
-          body: JSON.stringify({ text })
-        });
-
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && data.ok) {
-          console.log('[AI] Odpowiedź Gemini:', data.result);
-          output.value = data.result;
-        } else {
-          console.error('[AI] Błąd serwera:', data);
-          output.value = 'Błąd podczas podsumowania. Szczegóły w konsoli.';
-        }
-      } catch (err) {
-        console.error('[AI] Błąd sieci:', err);
-        output.value = 'Błąd sieci. Sprawdź konsolę.';
-      } finally {
-        summarizeBtn.disabled = false;
-        statusEl.textContent = '';
-      }
-    });
-
-let saveTimeout;
-let lastSavedContent = $('#editor').val();
-const saveUrl = window.location.pathname.replace(/\/$/, '') + `/save`;
-const csrfToken = '{{ csrf_token }}';
-
-function saveDocument(content) {
-    $.ajax({
-        url: saveUrl,
-        method: 'POST',
-        data: {
-            content: content,
-            csrfmiddlewaretoken: csrfToken,
-        },
-        success: function() {
-            console.log("💾 Document autosaved at " + new Date().toLocaleTimeString());
-            lastSavedContent = content;
-        },
-        error: function() {
-            console.warn("⚠️ Failed to autosave document");
-        }
-    });
-}
-
-$('#editor').on('input', function() {
-    const content = $(this).val();
+    writingArea.addEventListener("input", () => {
+    const content = getDocumentContent();
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => saveDocument(content), 3000);
 });
 
-window.addEventListener('beforeunload', function (e) {
-    const currentContent = $('#editor').val();
-    if (currentContent !== lastSavedContent) {
-        navigator.sendBeacon(saveUrl, new URLSearchParams({
-            content: currentContent,
-            csrfmiddlewaretoken: csrfToken
-        }));
-    }
-});
-
+    window.addEventListener('beforeunload', function (e) {
+        const currentContent = getDocumentContent();
+        if (currentContent !== lastSavedContent) {
+            navigator.sendBeacon(saveUrl, new URLSearchParams({
+                content: currentContent,
+                csrfmiddlewaretoken: csrfToken
+            }));
+        }
+    });
 window.addEventListener("load", () => {
         initializer(initialContent);
     });

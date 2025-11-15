@@ -46,6 +46,7 @@ const checkPageOverflow = (e) => {
 };
 
 const initializer = (initialHtmlContent) => {
+  console.log("BBBBBBBBBBBBBBBBBB");
   highlighter(alignButtons, true);
   highlighter(spacingButtons, true);
   highlighter(formatButtons, false);
@@ -59,6 +60,7 @@ const initializer = (initialHtmlContent) => {
   });
 
   for (let i = 1; i <= 7; i++) {
+    console.log("CCCCCCCCCCCCCCCCCC");
     let option = document.createElement("option");
     option.value = i;
     option.textContent = i;
@@ -284,5 +286,3 @@ writingArea.addEventListener("drop", (e) => {
     checkPageOverflow({ target: draggedWrapper });
   }, 50);
 });
-
-window.addEventListener("load", initializer);
