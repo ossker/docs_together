@@ -112,6 +112,105 @@
         </div>
 
         <div id="text-input"></div>
+
+        <div id="editor-context-menu" class="editor-context-menu">
+
+            <div class="ecm-toolbar">
+                <button class="ecm-tool-btn" data-command="bold" title="Pogrubienie (Ctrl+B)">
+                    <i class="fa-solid fa-bold"></i>
+                </button>
+                <button class="ecm-tool-btn" data-command="italic" title="Kursywa (Ctrl+I)">
+                    <i class="fa-solid fa-italic"></i>
+                </button>
+                <button class="ecm-tool-btn" data-command="underline" title="Podkreślenie (Ctrl+U)">
+                    <i class="fa-solid fa-underline"></i>
+                </button>
+                <button class="ecm-tool-btn" data-command="strikethrough" title="Przekreślenie">
+                    <i class="fa-solid fa-strikethrough"></i>
+                </button>
+
+                <span class="ecm-toolbar-separator"></span>
+
+                <button class="ecm-tool-btn" data-command="insertUnorderedList" title="Lista wypunktowana">
+                    <i class="fa-solid fa-list"></i>
+                </button>
+                <button class="ecm-tool-btn" data-command="insertOrderedList" title="Lista numerowana">
+                    <i class="fa-solid fa-list-ol"></i>
+                </button>
+
+                <span class="ecm-toolbar-separator"></span>
+
+                <button class="ecm-tool-btn" data-command="justifyLeft" title="Wyrównaj do lewej">
+                    <i class="fa-solid fa-align-left"></i>
+                </button>
+                <button class="ecm-tool-btn" data-command="justifyCenter" title="Wyśrodkuj">
+                    <i class="fa-solid fa-align-center"></i>
+                </button>
+                <button class="ecm-tool-btn" data-command="justifyRight" title="Wyrównaj do prawej">
+                    <i class="fa-solid fa-align-right"></i>
+                </button>
+                <button class="ecm-tool-btn" data-command="justifyFull" title="Wyjustuj">
+                    <i class="fa-solid fa-align-justify"></i>
+                </button>
+
+                <span class="ecm-toolbar-separator"></span>
+
+                <button class="ecm-tool-btn ecm-color-btn" data-color-type="foreColor" title="Kolor czcionki">
+                    <span class="ecm-color-dot"></span>
+                </button>
+                <button class="ecm-tool-btn ecm-color-btn" data-color-type="backColor" title="Kolor tła (zakreślenie)">
+                    <span class="ecm-color-dot ecm-color-dot-bg"></span>
+                </button>
+
+                <select id="ecm-fontName" class="ecm-font-select" title="Czcionka">
+                </select>
+
+                <span class="ecm-toolbar-separator"></span>
+
+                <select id="ecm-heading" class="ecm-font-select ecm-heading-select" title="Nagłówek">
+                    <option value="">Tekst</option>
+                    <option value="H1">H1</option>
+                    <option value="H2">H2</option>
+                    <option value="H3">H3</option>
+                    <option value="H4">H4</option>
+                    <option value="H5">H5</option>
+                </select>
+
+                <select id="ecm-fontSize" class="ecm-font-select ecm-fontsize-select" title="Rozmiar czcionki">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3" selected>3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                </select>
+
+            </div>
+
+            <hr class="ecm-divider">
+
+            <div class="ecm-actions">
+                <button class="ecm-item" data-action="cut">
+                    <span class="ecm-label">Wytnij</span>
+                    <span class="ecm-shortcut">Ctrl+X</span>
+                </button>
+                <button class="ecm-item" data-action="copy">
+                    <span class="ecm-label">Kopiuj</span>
+                    <span class="ecm-shortcut">Ctrl+C</span>
+                </button>
+                <button class="ecm-item" data-action="paste">
+                    <span class="ecm-label">Wklej</span>
+                    <span class="ecm-shortcut">Ctrl+V</span>
+                </button>
+                <button class="ecm-item" data-action="paste-plain">
+                    <span class="ecm-label">Wklej tylko tekst</span>
+                    <span class="ecm-shortcut">Ctrl+Shift+V</span>
+                </button>
+            </div>
+        </div>
+
+
     </div>
 
   <div class="right-sidebar">
@@ -177,7 +276,6 @@
     }
 
     function appendMessage(user, text) {
-        console.log(
         const isSelf = user === "{{ request.user.first_name }}";  // lub użyj username jeśli chcesz
         const messageClass = isSelf ? "self" : "other";
         $('#chatBox').append(`<p class="${messageClass}"><b>${user}:</b> ${text}</p>`);

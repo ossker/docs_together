@@ -35,12 +35,12 @@ const checkPageOverflow = (e) => {
     if (!nextPage) {
       nextPage = createNewPage();
     }
-    
+
     const lastElement = currentPage.lastElementChild;
     if (lastElement) {
       nextPage.insertBefore(lastElement, nextPage.firstChild);
     } else {
-      break; 
+      break;
     }
   }
 };
@@ -71,7 +71,7 @@ const initializer = (initialHtmlContent) => {
   if (initialHtmlContent) {
     firstPage.innerHTML = initialHtmlContent;
   }
-  
+
   firstPage.focus();
 
   writingArea.addEventListener("input", checkPageOverflow);
@@ -284,3 +284,252 @@ writingArea.addEventListener("drop", (e) => {
     checkPageOverflow({ target: draggedWrapper });
   }, 50);
 });
+// ======= MENU KONTEKSTOWE: MINI TOOLBAR + AKCJE =======
+if (writingArea) {
+  const contextMenu = document.getElementById("editor-context-menu");
+  const toolbarButtons = contextMenu.querySelectorAll(".ecm-tool-btn");
+  const actionButtons = contextMenu.querySelectorAll(".ecm-item");
+  const fontSelect = document.getElementById("ecm-fontName");
+
+  const headingSelect = document.getElementById("ecm-heading");
+  const sizeSelect = document.getElementById("ecm-fontSize");
+
+  const globalHeadingSelect = document.getElementById("formatBlock");
+  const globalFontSizeSelect = document.getElementById("fontSize");
+
+
+  const globalForeInput = document.getElementById("foreColor");
+  const globalBackInput = document.getElementById("backColor");
+
+  const foreDot = contextMenu.querySelector(
+    '.ecm-color-btn[data-color-type="foreColor"] .ecm-color-dot'
+  );
+  const backDot = contextMenu.querySelector(
+    '.ecm-color-btn[data-color-type="backColor"] .ecm-color-dot'
+  );
+
+  let contextMenuVisible = false;
+
+  if (fontSelect && typeof fontList !== "undefined") {
+    fontList.forEach((value) => {
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = value;
+      fontSelect.appendChild(opt);
+    });
+    const globalFontSelect = document.getElementById("fontName");
+    fontSelect.value = globalFontSelect ? globalFontSelect.value : "Arial";
+
+    fontSelect.addEventListener("change", () => {
+      const page = writingArea.querySelector(".page");
+      page && page.focus();
+      modifyText("fontName", false, fontSelect.value);
+      if (globalFontSelect) globalFontSelect.value = fontSelect.value;
+      hideContextMenu();
+    });
+  }
+    if (headingSelect) {
+    if (globalHeadingSelect) {
+      headingSelect.value = globalHeadingSelect.value || "";
+    }
+
+    headingSelect.addEventListener("change", () => {
+      const value = headingSelect.value;
+      const page = writingArea.querySelector(".page");
+      page && page.focus();
+
+      if (value) {
+        modifyText("formatBlock", false, value);
+      } else {
+        modifyText("formatBlock", false, "P");
+      }
+
+      if (globalHeadingSelect) {
+        globalHeadingSelect.value = value;
+      }
+
+      hideContextMenu();
+    });
+  }
+  if (sizeSelect) {
+    if (globalFontSizeSelect) {
+      sizeSelect.value = globalFontSizeSelect.value || "3";
+    }
+
+    sizeSelect.addEventListener("change", () => {
+      const page = writingArea.querySelector(".page");
+      page && page.focus();
+
+      modifyText("fontSize", false, sizeSelect.value);
+
+      if (globalFontSizeSelect) {
+        globalFontSizeSelect.value = sizeSelect.value;
+      }
+
+      hideContextMenu();
+    });
+  }
+
+
+  function syncDotsFromToolbar() {
+    if (foreDot && globalForeInput) {
+      foreDot.style.background = globalForeInput.value || "#ffffff";
+    }
+    if (backDot && globalBackInput) {
+      backDot.style.background = globalBackInput.value || "#ffffff";
+    }
+  }
+
+  function hideContextMenu() {
+    if (!contextMenuVisible) return;
+    contextMenu.style.display = "none";
+    contextMenuVisible = false;
+  }
+
+  function showContextMenu(x, y) {
+    contextMenu.style.display = "block";
+    contextMenuVisible = true;
+
+    syncDotsFromToolbar();
+
+    const rect = contextMenu.getBoundingClientRect();
+    let left = x;
+    let top = y;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    if (left + rect.width > vw - 8) left = vw - rect.width - 8;
+    if (top + rect.height > vh - 8) top = vh - rect.height - 8;
+
+    contextMenu.style.left = left + "px";
+    contextMenu.style.top = top + "px";
+  }
+
+  document.addEventListener("contextmenu", (e) => {
+    const page = e.target.closest(".page");
+
+    if (!page) {
+      hideContextMenu();
+      return;
+    }
+
+    e.preventDefault();
+    page.focus();
+
+    showContextMenu(e.clientX, e.clientY);
+  });
+
+
+  document.addEventListener("click", (e) => {
+    if (!contextMenu.contains(e.target)) {
+      hideContextMenu();
+    }
+  });
+
+  window.addEventListener("scroll", hideContextMenu);
+  window.addEventListener("resize", hideContextMenu);
+
+  toolbarButtons.forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const page = writingArea.querySelector(".page");
+      page && page.focus();
+
+      const colorType = btn.dataset.colorType;
+      const command = btn.dataset.command;
+
+      if (colorType) {
+        if (colorType === "foreColor" && globalForeInput) {
+          globalForeInput.click(); // otwiera picker
+        } else if (colorType === "backColor" && globalBackInput) {
+          globalBackInput.click();
+        }
+        return;
+      }
+
+      if (command) {
+        modifyText(command, false, null);
+        hideContextMenu();
+      }
+    });
+  });
+
+  actionButtons.forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const action = btn.dataset.action;
+      const page = writingArea.querySelector(".page");
+      page && page.focus();
+
+    switch (action) {
+      case "cut":
+      case "copy":
+        document.execCommand(action);
+        break;
+
+      case "paste":
+        if (navigator.clipboard && navigator.clipboard.read) {
+          navigator.clipboard.read().then((items) => {
+            for (const item of items) {
+              if (item.types.includes("text/html")) {
+                item.getType("text/html").then((blob) => {
+                  blob.text().then((html) => {
+                    document.execCommand("insertHTML", false, html);
+                  });
+                });
+                return;
+              }
+            }
+            for (const item of items) {
+              if (item.types.includes("text/plain")) {
+                item.getType("text/plain").then((blob) => {
+                  blob.text().then((text) => {
+                    document.execCommand("insertText", false, text);
+                  });
+                });
+                return;
+              }
+            }
+          });
+        } else if (navigator.clipboard && navigator.clipboard.readText) {
+          navigator.clipboard.readText().then((text) => {
+            if (!text) return;
+            document.execCommand("insertText", false, text);
+          });
+        } else {
+          document.execCommand("paste");
+        }
+        break;
+
+      case "paste-plain":
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          navigator.clipboard.readText().then((text) => {
+            if (!text) return;
+            document.execCommand("insertText", false, text);
+          });
+        } else {
+          const tmp = document.createElement("div");
+          tmp.contentEditable = "true";
+          tmp.style.position = "fixed";
+          tmp.style.left = "-9999px";
+          document.body.appendChild(tmp);
+          tmp.focus();
+
+          const ok = document.execCommand("paste");
+          const text = tmp.innerText;
+          document.body.removeChild(tmp);
+          page && page.focus();
+
+          if (!ok || !text) return;
+          document.execCommand("insertText", false, text);
+        }
+        break;
+
+      default:
+        break;
+    }
+
+      hideContextMenu();
+    });
+  });
+}
