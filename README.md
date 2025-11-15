@@ -39,10 +39,31 @@ Uruchom serwer ASGI:
 daphne docs_together.asgi:application
 ```
 
+Stwórz migracje:
 ```bash
 python manage.py makemigrations
 ```
 
+
 ```bash
 python manage.py migrate
+```
+
+Włącz dockera i zbuduj projekt będąc na poziomie docker-compose.yml
+```bash
+docker compose up --build
+```
+Każdy kolejny raz po zbudowaniu:
+```bash
+docker compose up
+```
+
+Flower:
+```bash
+http://localhost:5555/
+```
+
+Django:
+```bash
+http://localhost:8000/
 ```

@@ -59,11 +59,9 @@ def join_document(request, token):
 def save_document(request, document_id):
     if request.method == "POST":
         document = Document.objects.get(id=document_id)
-        if document.owner == request.user or request.user in document.collaborators.all():
-            document.content = request.POST.get("content", "")
-            document.date_edited = timezone.now()
-            document.save(update_fields=["content", "date_edited"])
-            return JsonResponse({"status": "ok"})
-        else:
-            return JsonResponse({"error": "permission denied"}, status=403)
+        document.content = request.POST.get("content", "")
+        document.date_edited = timezone.now()
+        document.summary_pending = True
+        document.save(update_fields=["content", "date_edited", "summary_pending"])
+        return JsonResponse({"status": "ok"})
     return JsonResponse({"error": "invalid method"}, status=405)
