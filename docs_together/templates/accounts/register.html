@@ -5,13 +5,50 @@
 Rejestracja
 {% endblock %}
 
+{% block header %}
+{% endblock header %}
+
+{% block extrahead %}
+<link href="{% static 'css/auth.css' %}" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
+<div class="auth-wrapper">
 
-<h1>Rejestracja</h1>
-<form method="post" action="/accounts/register">
-    {% csrf_token %}
-    {{ form }}
-    <button type="submit">Submit</button>
-</form>
+    <div class="area">
+        <ul class="circles">
+            <li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li><li></li>
+        </ul>
+    </div>
 
+    <div class="auth-container">
+
+        <div class="auth-image-panel">
+            <a class="logo" href="/accounts/login"><img src="{% static 'css/media/login_image.png' %}" alt="Logowanie - DocsTogether"></a>
+        </div>
+
+        <div class="auth-form-panel">
+            <h1>Tworzenie konta</h1>
+            <form method="post" action="/accounts/register" class="auth-form">
+                {% csrf_token %}
+
+                {{ form.non_field_errors }}
+
+                {% for field in form %}
+                <div class="form-field">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {{ field.errors }}
+                </div>
+                {% endfor %}
+
+                <button type="submit" class="auth-submit-btn">Zarejestruj się</button>
+            </form>
+            <div class="auth-switch-link">
+                <p>Masz już konto? <a href="/accounts/login">Zaloguj się</a></p>
+            </div>
+        </div>
+
+    </div>
+</div>
 {% endblock %}

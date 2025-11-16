@@ -15,9 +15,11 @@
 </head>
 
 <body>
+    {% block header %}
     <header id="header">
-        <a class="logo" href="/documents">DocsTogesther</a>
+        <a class="logo" href="/documents">DocsTogether</a>
     </header>
+    {% endblock header %}
 
     <div id="content">
         {% block content %}
