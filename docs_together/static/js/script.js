@@ -382,7 +382,6 @@ if (writingArea) {
   const globalHeadingSelect = document.getElementById("formatBlock");
   const globalFontSizeSelect = document.getElementById("fontSize");
 
-
   const globalForeInput = document.getElementById("foreColor");
   const globalBackInput = document.getElementById("backColor");
 
@@ -393,7 +392,29 @@ if (writingArea) {
     '.ecm-color-btn[data-color-type="backColor"] .ecm-color-dot'
   );
 
+  const foreInputContext = document.getElementById("ecm-foreColor");
+  const backInputContext = document.getElementById("ecm-backColor");
+
+
   let contextMenuVisible = false;
+  let lastSelectionRange = null;
+
+  function storeSelection() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) {
+      lastSelectionRange = null;
+      return;
+    }
+    lastSelectionRange = sel.getRangeAt(0).cloneRange();
+  }
+
+  function restoreSelection() {
+    if (!lastSelectionRange) return false;
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(lastSelectionRange);
+    return true;
+  }
 
   if (fontSelect && typeof fontList !== "undefined") {
     fontList.forEach((value) => {
@@ -402,27 +423,30 @@ if (writingArea) {
       opt.textContent = value;
       fontSelect.appendChild(opt);
     });
+
     const globalFontSelect = document.getElementById("fontName");
     fontSelect.value = globalFontSelect ? globalFontSelect.value : "Arial";
 
     fontSelect.addEventListener("change", () => {
-      const page = writingArea.querySelector(".page");
-      page && page.focus();
+      const ok = restoreSelection();
+      if (!ok) return;
+
       modifyText("fontName", false, fontSelect.value);
       if (globalFontSelect) globalFontSelect.value = fontSelect.value;
       hideContextMenu();
     });
   }
-    if (headingSelect) {
+
+  if (headingSelect) {
     if (globalHeadingSelect) {
       headingSelect.value = globalHeadingSelect.value || "";
     }
 
     headingSelect.addEventListener("change", () => {
-      const value = headingSelect.value;
-      const page = writingArea.querySelector(".page");
-      page && page.focus();
+      const ok = restoreSelection();
+      if (!ok) return;
 
+      const value = headingSelect.value;
       if (value) {
         modifyText("formatBlock", false, value);
       } else {
@@ -436,14 +460,15 @@ if (writingArea) {
       hideContextMenu();
     });
   }
+
   if (sizeSelect) {
     if (globalFontSizeSelect) {
       sizeSelect.value = globalFontSizeSelect.value || "3";
     }
 
     sizeSelect.addEventListener("change", () => {
-      const page = writingArea.querySelector(".page");
-      page && page.focus();
+      const ok = restoreSelection();
+      if (!ok) return;
 
       modifyText("fontSize", false, sizeSelect.value);
 
@@ -454,7 +479,6 @@ if (writingArea) {
       hideContextMenu();
     });
   }
-
 
   function syncDotsFromToolbar() {
     if (foreDot && globalForeInput) {
@@ -499,11 +523,12 @@ if (writingArea) {
     }
 
     e.preventDefault();
+
     page.focus();
+    storeSelection();
 
     showContextMenu(e.clientX, e.clientY);
   });
-
 
   document.addEventListener("click", (e) => {
     if (!contextMenu.contains(e.target)) {
@@ -514,105 +539,155 @@ if (writingArea) {
   window.addEventListener("scroll", hideContextMenu);
   window.addEventListener("resize", hideContextMenu);
 
-  toolbarButtons.forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      const page = writingArea.querySelector(".page");
-      page && page.focus();
+toolbarButtons.forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
 
-      const colorType = btn.dataset.colorType;
-      const command = btn.dataset.command;
+    const colorType = btn.dataset.colorType;
+    const command = btn.dataset.command;
 
-      if (colorType) {
-        if (colorType === "foreColor" && globalForeInput) {
-          globalForeInput.click(); // otwiera picker
-        } else if (colorType === "backColor" && globalBackInput) {
-          globalBackInput.click();
+    const ok = restoreSelection();
+    if (!ok && writingArea) {
+      const firstPage = writingArea.querySelector(".page");
+      firstPage && firstPage.focus();
+    }
+        if (foreInputContext) {
+      foreInputContext.addEventListener("change", () => {
+        const ok = restoreSelection();
+        if (!ok && writingArea) {
+          const firstPage = writingArea.querySelector(".page");
+          firstPage && firstPage.focus();
         }
-        return;
-      }
 
-      if (command) {
-        modifyText(command, false, null);
-        hideContextMenu();
+        const value = foreInputContext.value;
+        modifyText("foreColor", false, value);
+
+        if (globalForeInput) {
+          globalForeInput.value = value;
+        }
+        syncDotsFromToolbar();
+      });
+    }
+
+    if (backInputContext) {
+      backInputContext.addEventListener("change", () => {
+        const ok = restoreSelection();
+        if (!ok && writingArea) {
+          const firstPage = writingArea.querySelector(".page");
+          firstPage && firstPage.focus();
+        }
+
+        const value = backInputContext.value;
+        modifyText("backColor", false, value);
+
+        if (globalBackInput) {
+          globalBackInput.value = value;
+        }
+        syncDotsFromToolbar();
+      });
+    }
+
+    if (colorType) {
+      if (colorType === "foreColor" && foreInputContext) {
+        foreInputContext.click();
+      } else if (colorType === "backColor" && backInputContext) {
+        backInputContext.click();
       }
-    });
+      return;
+    }
+
+    if (command) {
+      modifyText(command, false, null);
+      hideContextMenu();
+    }
   });
+});
+
+  if (globalForeInput) {
+    globalForeInput.addEventListener("input", syncDotsFromToolbar);
+  }
+  if (globalBackInput) {
+    globalBackInput.addEventListener("input", syncDotsFromToolbar);
+  }
 
   actionButtons.forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       const action = btn.dataset.action;
-      const page = writingArea.querySelector(".page");
-      page && page.focus();
 
-    switch (action) {
-      case "cut":
-      case "copy":
-        document.execCommand(action);
-        break;
+      const ok = restoreSelection();
+      if (!ok && writingArea) {
+        const firstPage = writingArea.querySelector(".page");
+        firstPage && firstPage.focus();
+      }
 
-      case "paste":
-        if (navigator.clipboard && navigator.clipboard.read) {
-          navigator.clipboard.read().then((items) => {
-            for (const item of items) {
-              if (item.types.includes("text/html")) {
-                item.getType("text/html").then((blob) => {
-                  blob.text().then((html) => {
-                    document.execCommand("insertHTML", false, html);
+      switch (action) {
+        case "cut":
+        case "copy":
+          document.execCommand(action);
+          break;
+
+        case "paste":
+          if (navigator.clipboard && navigator.clipboard.read) {
+            navigator.clipboard.read().then((items) => {
+              for (const item of items) {
+                if (item.types.includes("text/html")) {
+                  item.getType("text/html").then((blob) => {
+                    blob.text().then((html) => {
+                      document.execCommand("insertHTML", false, html);
+                    });
                   });
-                });
-                return;
+                  return;
+                }
               }
-            }
-            for (const item of items) {
-              if (item.types.includes("text/plain")) {
-                item.getType("text/plain").then((blob) => {
-                  blob.text().then((text) => {
-                    document.execCommand("insertText", false, text);
+              for (const item of items) {
+                if (item.types.includes("text/plain")) {
+                  item.getType("text/plain").then((blob) => {
+                    blob.text().then((text) => {
+                      document.execCommand("insertText", false, text);
+                    });
                   });
-                });
-                return;
+                  return;
+                }
               }
-            }
-          });
-        } else if (navigator.clipboard && navigator.clipboard.readText) {
-          navigator.clipboard.readText().then((text) => {
-            if (!text) return;
+            });
+          } else if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText().then((text) => {
+              if (!text) return;
+              document.execCommand("insertText", false, text);
+            });
+          } else {
+            document.execCommand("paste");
+          }
+          break;
+
+        case "paste-plain":
+          if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText().then((text) => {
+              if (!text) return;
+              document.execCommand("insertText", false, text);
+            });
+          } else {
+            const tmp = document.createElement("div");
+            tmp.contentEditable = "true";
+            tmp.style.position = "fixed";
+            tmp.style.left = "-9999px";
+            document.body.appendChild(tmp);
+            tmp.focus();
+
+            const okPaste = document.execCommand("paste");
+            const text = tmp.innerText;
+            document.body.removeChild(tmp);
+
+            if (!okPaste || !text) return;
+            restoreSelection();
             document.execCommand("insertText", false, text);
-          });
-        } else {
-          document.execCommand("paste");
-        }
-        break;
+          }
+          break;
 
-      case "paste-plain":
-        if (navigator.clipboard && navigator.clipboard.readText) {
-          navigator.clipboard.readText().then((text) => {
-            if (!text) return;
-            document.execCommand("insertText", false, text);
-          });
-        } else {
-          const tmp = document.createElement("div");
-          tmp.contentEditable = "true";
-          tmp.style.position = "fixed";
-          tmp.style.left = "-9999px";
-          document.body.appendChild(tmp);
-          tmp.focus();
-
-          const ok = document.execCommand("paste");
-          const text = tmp.innerText;
-          document.body.removeChild(tmp);
-          page && page.focus();
-
-          if (!ok || !text) return;
-          document.execCommand("insertText", false, text);
-        }
-        break;
-
-      default:
-        break;
-    }
+        default:
+          break;
+      }
 
       hideContextMenu();
     });
