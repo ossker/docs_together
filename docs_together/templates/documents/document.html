@@ -288,11 +288,12 @@
         box.scrollTop = box.scrollHeight;
     }
 
-    function saveDocument(content) {
+    function saveDocument(title, content) {
         $.ajax({
             url: saveUrl,
             method: 'POST',
             data: {
+                title: title,
                 content: content,
                 csrfmiddlewaretoken: csrfToken,
             },
@@ -360,9 +361,10 @@
 
 
     writingArea.addEventListener("input", () => {
+    const title = "{{ document.title }}";
     const content = writingArea.innerHTML;
     clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => saveDocument(content), 3000);
+    saveTimeout = setTimeout(() => saveDocument(title, content), 3000);
 });
 
     window.addEventListener('beforeunload', function (e) {
