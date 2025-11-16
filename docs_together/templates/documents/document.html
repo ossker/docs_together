@@ -355,13 +355,13 @@
 
 
     writingArea.addEventListener("input", () => {
-    const content = getDocumentContent();
+    const content = writingArea.innerHTML;
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => saveDocument(content), 3000);
 });
 
     window.addEventListener('beforeunload', function (e) {
-        const currentContent = getDocumentContent();
+        const currentContent = writingArea.innerHTML;
         if (currentContent !== lastSavedContent) {
             navigator.sendBeacon(saveUrl, new URLSearchParams({
                 content: currentContent,
