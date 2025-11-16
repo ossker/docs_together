@@ -7,10 +7,12 @@ Dokumenty
 
 {% block content %}
 <h1>Moje Dokumenty</h1>
+<a href="/documents/create"><button>Stwórz dokument</button></a>
 <ul>
     {% for document in owned_documents %}
         <li>
             <a href="/documents/{{ document.id }}">{{ document.title }}</a><br>
+            <a href="/documents/{{ document.id }}/changelogs">Historia zmian</a><br>
 
             <button class="invite-btn" data-doc-id="{{ document.id }}">Generuj jednorazowy link</button>
             <input type="text" class="invite-link" readonly style="width: 80%;">

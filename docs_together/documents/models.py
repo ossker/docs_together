@@ -22,6 +22,18 @@ class Document(models.Model):
         return f'"{self.title}" by {self.owner}'
 
 
+class DocumentChangelog(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    document = models.ForeignKey('Document', related_name='changelogs', on_delete=models.CASCADE)
+    editor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    title = models.CharField(max_length=256)
+    content = models.TextField()
+    date_edited = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f'{self.document} edited by {self.editor}'
+
+
 def default_expiration():
     return timezone.now() + timedelta(minutes=5)
 
