@@ -1,0 +1,16 @@
+<h2>Historia zmian: {{ document.title }}</h2>
+
+<ul>
+{% for log in changelogs %}
+    <li>
+        <strong>{{ log.date_edited|date:"Y-m-d H:i" }}</strong>
+        — edytował: {{ log.editor.email_address }}
+
+        <a href="/documents/{{ document.id }}/changelogs/{{ log.id}}">Podgląd</a>
+    </li>
+    {% with previous=log %}
+    {% endwith %}
+{% empty %}
+    <li>Brak historii zmian</li>
+{% endfor %}
+</ul>

@@ -1,4 +1,3 @@
-from django.core.paginator import Paginator
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from .decorators import owner_or_collaborator_required, owner_required
@@ -6,6 +5,7 @@ from .models import Document, DocumentInvitation, DocumentChangelog
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
+from diff_match_patch import diff_match_patch
 
 
 @login_required
@@ -110,23 +110,25 @@ def create_document(request):
 @login_required
 @owner_or_collaborator_required
 def view_document_changelogs(request, document_id):
-    document = Document.objects.get(pk=document_id)
+    document = get_object_or_404(Document, id=document_id)
     changelogs = document.changelogs.order_by("-date_edited")
+    return render(request, "documents/changelogs.html", {"document": document, "changelogs": changelogs})
 
-    page_number = request.GET.get("page_number", 1)
-    page_size = request.GET.get("page_size", 10)
-    paginator = Paginator(changelogs, page_size)
-    page = paginator.get_page(page_number)
 
-    data = [
-        {
-            "id": changelog.id,
-            "editor": changelog.editor.email_address,
-            "title": changelog.title,
-            "content": changelog.content,
-            "date_edited": changelog.date_edited.isoformat(),
-        }
-        for changelog in page
-    ]
+@login_required
+@owner_or_collaborator_required
+def view_document_changelog(request, document_id, document_changelog_id):
+    document = get_object_or_404(Document, id=document_id)
+    changelog = get_object_or_404(document.changelogs, id=document_changelog_id)
 
-    return JsonResponse({"changelogs": data})
+    previous_changelog = (document.changelogs.filter(date_edited__lt=changelog.date_edited)
+                          .order_by("-date_edited").first())
+
+    difference = None
+    if previous_changelog:
+        dmp = diff_match_patch()
+        diffs = dmp.diff_main(previous_changelog.content, changelog.content)
+        dmp.diff_cleanupSemantic(diffs)
+        difference = dmp.diff_prettyHtml(diffs)
+
+    return render(request, "documents/changelog.html", {"changelog": changelog, "difference": difference})

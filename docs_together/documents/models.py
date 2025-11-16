@@ -23,7 +23,6 @@ class Document(models.Model):
 
 
 class DocumentChangelog(models.Model):
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     document = models.ForeignKey('Document', related_name='changelogs', on_delete=models.CASCADE)
     editor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)

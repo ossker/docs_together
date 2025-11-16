@@ -1,0 +1,9 @@
+<h2>Zmiana wykonana przez: {{ changelog.editor.email_address }}</h2>
+<p><strong>Data:</strong> {{ changelog.date_edited }}</p>
+
+{% if difference %}
+    <h3>Różnice względem poprzedniej wersji:</h3>
+    <div class="diff-output">{{ difference|safe }}</div>
+{% else %}
+    <p>{{ changelog.content|safe }}</p>
+{% endif %}

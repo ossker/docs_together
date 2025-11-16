@@ -11,6 +11,7 @@ urlpatterns = [
     path("<uuid:document_id>/delete", views.delete_document, name='delete_document'),
     path('<uuid:document_id>/invite/', views.generate_link, name='generate_link'),
     path('<uuid:document_id>/changelogs', views.view_document_changelogs, name='view_document_changelogs'),
+    path('<uuid:document_id>/changelogs/<uuid:document_changelog_id>', views.view_document_changelog, name='view_document_changelog'),
     path('<uuid:document_id>/ai/summarize', ai_views.summarize, name='document_ai_summarize'),
     path('join/<uuid:token>/', views.join_document, name='join_document'),
     path('create', views.create_document, name='create_document'),
