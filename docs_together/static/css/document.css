@@ -623,3 +623,68 @@ input[type="color"]::-moz-color-swatch { border-radius: 15px; box-shadow: 0 0 0 
 .ecm-fontsize-select {
   max-width: 70px;
 }
+
+/* === Asystent AI === */
+#ai-tools {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 20px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+  font-family: "Poppins", sans-serif;
+}
+
+.ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#ai-tools h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.ai-copy-btn {
+  background: #3d8bfd;
+  border: none;
+  color: white;
+  border-radius: 999px;
+  padding: 20px 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-copy-btn:hover {
+  background: #1f6fe0;
+}
+
+.ai-copy-btn i {
+  pointer-events: none;
+  font-size: 14px;
+}
+
+.ai-status {
+  font-size: 13px;
+  color: #777;
+  margin-top: 8px;
+  margin-bottom: 10px;
+}
+
+.ai-output {
+  background: #fafafa;
+  border: 1px solid #e3e3e3;
+  border-radius: 12px;
+  padding: 14px;
+  min-height: 90px;
+  max-height: 220px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-size: 14px;
+  color: #222;
+  line-height: 1.45;
+}
