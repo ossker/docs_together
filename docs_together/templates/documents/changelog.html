@@ -1,5 +1,5 @@
 <h2>Zmiana wykonana przez: {{ changelog.editor.email_address }}</h2>
-<p><strong>Data:</strong> {{ changelog.date_edited }}</p>
+<p><strong>Data:</strong> {{ changelog.date_edited|date:"Y-m-d H:i" }}</p>
 
 {% if difference %}
     <h3>Różnice względem poprzedniej wersji:</h3>
