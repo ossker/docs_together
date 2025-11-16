@@ -70,6 +70,16 @@ body {
   background-color: #e0e9ff;
 }
 
+#editableTitle {
+    outline: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+#editableTitle:focus {
+    background: #f0f0f0;
+}
+
 /* ================================== */
 /*     GŁÓWNY KONTENER I NARZĘDZIA    */
 /* ================================== */

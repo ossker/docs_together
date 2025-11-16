@@ -65,6 +65,19 @@ class DocumentConsumer(AsyncWebsocketConsumer):
                 content=content
             )
 
+        elif msg_type == "update_title":
+            new_title = data.get("title", "")
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "broadcast",
+                    "message_type": "update_title",
+                    "title": new_title,
+                    "user": self.username,
+                }
+            )
+            return
+
         await self.channel_layer.group_send(
             self.room_group_name,
             {

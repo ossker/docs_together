@@ -5,15 +5,48 @@
 Dokumenty
 {% endblock %}
 
+{% block extrahead %}
+<link rel="stylesheet" href="{% static 'css/documents.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" />
+<link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet" />
+{% endblock %}
+
 {% block content %}
 <h1>Moje Dokumenty</h1>
-<a href="/documents/create"><button>Stwórz dokument</button></a>
+<a href="/documents/create"><button>Utwórz pusty dokument dokument</button></a>
+<form id="importForm" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="file" name="file" accept=".json">
+    <button type="submit">Przekaż plik</button>
+</form>
+
 <ul>
     {% for document in owned_documents %}
-        <li>
-            <a href="/documents/{{ document.id }}">{{ document.title }}</a><br>
-            <a href="/documents/{{ document.id }}/changelogs">Historia zmian</a><br>
+        <li class="document-card">
+            <a href="/documents/{{ document.id }}">
+                <div class="doc-preview">
+                    <div class="doc-preview-inner">
+                        {{ document.content|truncatechars_html:500|safe }}
+                    </div>
+                </div>
+                <h3 class="doc-title">{{ document.title }}</h3>
+            </a>
 
+            <a href="/documents/{{ document.id }}/changelogs">
+                <button>Historia zmian</button>
+            </a>
+            <br>
+            <a href="/documents/{{ document.id }}/export">
+                <button>Pobierz dokument</button>
+            </a>
+            <br>
+            <form method="POST" action="{% url 'documents:delete_document' document.id %}" onsubmit="return confirm('Na pewno chcesz usunąć dokument?');">
+                {% csrf_token %}
+                <button type="submit">Usuń dokument</button>
+            </form>
+
+
+            <br>
             <button class="invite-btn" data-doc-id="{{ document.id }}">Generuj jednorazowy link</button>
             <input type="text" class="invite-link" readonly style="width: 80%;">
 
@@ -21,10 +54,17 @@ Dokumenty
                 <strong>Współtwórcy:</strong>
                 {% for user in document.collaborators.all %}
                     <p>{{ user.first_name }} {{ user.last_name }}</p>
+                    {% if request.user == document.owner %}
+                        <form method="POST" action="{% url 'documents:remove_collaborator' document.id user.id %}" onsubmit="return confirm('Na pewno chcesz usunąć współtwórcę?');">
+                            {% csrf_token %}
+                            <button type="submit">Usuń</button>
+                        </form>
+                    {% endif %}
                 {% empty %}
                     brak współtwórców
                 {% endfor %}
             </div>
+            <p>{{ document.summary_text}}</p>
         </li>
     {% endfor %}
 </ul>
@@ -40,6 +80,7 @@ Dokumenty
 {% endblock %}
 
 {% block domready %}
+const csrfToken = '{{ csrf_token }}';
 $(".invite-btn").on("click", function() {
     const btn = $(this);
     const docId = btn.data("doc-id");
@@ -51,4 +92,26 @@ $(".invite-btn").on("click", function() {
         alert("Błąd podczas generowania linku.");
     });
 });
+
+document.getElementById("importForm").addEventListener("submit", async function(e){
+    e.preventDefault();
+    const formData = new FormData(this);
+
+    const res = await fetch("{% url 'documents:import_document' %}", {
+        method: "POST",
+        body: formData,
+        headers: {
+            'X-CSRFToken': csrfToken
+        },
+        credentials: 'same-origin'
+    });
+
+    const data = await res.json();
+    console.log(data);
+    if (data.id) {
+        window.location.href = `/documents/${data.id}`;
+    } else {
+        alert(data.error || "Błąd podczas importu");
+    }
+})
 {% endblock %}

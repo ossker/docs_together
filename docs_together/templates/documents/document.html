@@ -14,7 +14,9 @@
 {% block content %}
 
 <div class="page-main-header">
-    <h1 class="document-title">{{ document.title }}</h1>
+    <h1 id="editableTitle" class="document-title" contenteditable="true">
+        {{ document.title }}
+    </h1>
 </div>
 
 <div class="editor-chat-wrapper">
@@ -255,6 +257,15 @@
     let lastSavedContent = writingArea.innerHTML;
     const saveUrl = window.location.pathname.replace(/\/$/, '') + `/save`;
     const csrfToken = '{{ csrf_token }}';
+    const titleEl = document.getElementById("editableTitle");
+    let titleSaveTimeout;
+
+    function queueTitleSave(newTitle) {
+        clearTimeout(titleSaveTimeout);
+        titleSaveTimeout = setTimeout(() => {
+            saveDocument(newTitle, writingArea.innerHTML);
+        }, 800);
+    }
 
     function saveSelection() {
         const sel = window.getSelection();
@@ -307,6 +318,17 @@
         });
     }
 
+    titleEl.addEventListener("input", () => {
+        const newTitle = titleEl.innerText;
+
+        socket.send(JSON.stringify({
+            type: "update_title",
+            title: newTitle,
+        }));
+
+        queueTitleSave(newTitle);
+    });
+
     writingArea.addEventListener("input", () => {
         const currentContent = writingArea.innerHTML;
         socket.send(JSON.stringify({
@@ -315,6 +337,7 @@
         }));
 
     });
+
     socket.onmessage = function(e) {
         const data = JSON.parse(e.data);
         if (data.message_type === 'update_content') {
@@ -345,6 +368,13 @@
             });
             return;
         }
+        else if (data.message_type === "update_title") {
+            if (document.activeElement !== titleEl) {
+                titleEl.innerText = data.title;
+            }
+            document.title = data.title;
+            return;
+        }
     };
 
     $('#sendBtn').click(function() {
@@ -361,23 +391,24 @@
 
 
     writingArea.addEventListener("input", () => {
-    const title = "{{ document.title }}";
-    const content = writingArea.innerHTML;
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => saveDocument(title, content), 3000);
-});
+        const title = titleEl.innerText;
+        const content = writingArea.innerHTML;
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => saveDocument(title, content), 3000);
+    });
 
     window.addEventListener('beforeunload', function (e) {
         const currentContent = writingArea.innerHTML;
         if (currentContent !== lastSavedContent) {
             navigator.sendBeacon(saveUrl, new URLSearchParams({
-                title: "{{ document.title }}",
+                title: titleEl.innerText,
                 content: currentContent,
                 csrfmiddlewaretoken: csrfToken
             }));
         }
     });
-window.addEventListener("load", () => {
+
+    window.addEventListener("load", () => {
         initializer(initialContent);
     });
 
