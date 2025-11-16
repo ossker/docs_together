@@ -4,6 +4,7 @@
 *.pyc
 __pycache__
 docs_together/db.sqlite3
+docs_together/celerybeat-schedule
 media
 
 # Backup files #
