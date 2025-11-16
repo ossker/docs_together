@@ -399,6 +399,24 @@ if (writingArea) {
   let contextMenuVisible = false;
   let lastSelectionRange = null;
 
+  function buildTextWithMarkerForAI() {
+    if (!lastSelectionRange) return null;
+    if (typeof getDocumentContent !== "function") return null;
+
+    const range = lastSelectionRange.cloneRange();
+    const markerNode = document.createTextNode("XXXX");
+
+    range.insertNode(markerNode);
+
+    const textWithMarker = getDocumentContent();
+
+    markerNode.parentNode.removeChild(markerNode);
+
+    storeSelection();
+
+    return textWithMarker;
+  }
+
   function storeSelection() {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) {
@@ -684,6 +702,15 @@ toolbarButtons.forEach((btn) => {
             document.execCommand("insertText", false, text);
           }
           break;
+          case "ai-generate": {
+          const textWithMarker = buildTextWithMarkerForAI();
+
+          if (textWithMarker && window.requestAiGenerate) {
+            window.requestAiGenerate(textWithMarker);
+          }
+          break;
+        }
+
 
         default:
           break;

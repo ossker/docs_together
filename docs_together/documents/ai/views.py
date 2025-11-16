@@ -46,3 +46,48 @@ def summarize(request, document_id):
     doc.save(update_fields=["summary_text"])
 
     return JsonResponse({"ok": True, "result": result})
+
+def call_gemini_generate(text_with_marker: str):
+    api_key = "AIzaSyAgrXmDDpajd326Hz_Eo_GuYf1Ixy1q1vk"
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+
+    prompt = (
+        "Masz dokument tekstowy. W miejscu, w którym ma zostać wygenerowany nowy fragment, "
+        "znajduje się dokładnie ciąg znaków XXXX.\n"
+        "Twoim zadaniem jest zaproponować tekst, który powinien zostać wstawiony w miejsce XXXX, "
+        "tak aby dobrze pasował do kontekstu dokumentu (przed i po tym miejscu).\n\n"
+        "ZASADY ODPOWIEDZI:\n"
+        "- ZWRÓĆ WYŁĄCZNIE gotowy tekst, który należy wstawić w miejsce XXXX.\n"
+        "- NIE dodawaj żadnych komentarzy, nagłówków, opisu, znaczników html, wyjaśnień ani oznaczeń typu \"Oto tekst\".\n"
+        "- Nie powtarzaj całego dokumentu, jedynie brakujący fragment.\n\n"
+        f"DOKUMENT:\n{text_with_marker}"
+    )
+
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    r = requests.post(url, headers={"Content-Type": "application/json"}, json=payload, timeout=60)
+    if not r.ok:
+        raise RuntimeError(f"Gemini API error: {r.status_code} {r.text}")
+    j = r.json()
+    return j["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+
+@login_required
+@owner_or_collaborator_required
+@require_POST
+def generate_text(request, document_id):
+    data = json.loads(request.body or "{}")
+    text = (data.get("text") or "").strip()
+
+    if not text:
+        return JsonResponse({"ok": False, "error": "empty_text"}, status=400)
+
+    if "XXXX" not in text:
+        return JsonResponse({"ok": False, "error": "missing_marker"}, status=400)
+
+    try:
+        result = call_gemini_generate(text)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Błąd komunikacji z API"}, status=500)
+
+    return JsonResponse({"ok": True, "result": result})

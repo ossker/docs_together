@@ -212,6 +212,12 @@
                     <span class="ecm-label">Wklej tylko tekst</span>
                     <span class="ecm-shortcut">Ctrl+Shift+V</span>
                 </button>
+                <button class="ecm-item" data-action="ai-generate">
+                    <span class="ecm-label">Generuj tekst (AI)</span>
+                    <span class="ecm-shortcut"></span>
+                </button>
+
+
             </div>
         </div>
 
@@ -238,6 +244,18 @@
                 <button id="sendBtn"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
         </div>
+            <div id="ai-tools">
+                <div class="ai-header">
+                    <h3>Asystent AI</h3>
+                    <button id="ai-copy-btn" class="ai-copy-btn" title="Kopiuj">
+                        <i class="fa-solid fa-copy"></i>
+                    </button>
+                </div>
+
+                <div id="ai-status" class="ai-status"></div>
+
+                <div id="ai-output" class="ai-output"></div>
+            </div>
 
     </div>
 
@@ -282,14 +300,15 @@
         sel.addRange(range);
     }
 
-    function getDocumentContent() {
-        const pages = writingArea.querySelectorAll(".page");
-        let content = "";
-        pages.forEach(page => {
-            content += page.innerHTML; // tylko wnętrze strony
-        });
-        return content;
-    }
+    window.getDocumentContent = function() {
+    const pages = writingArea.querySelectorAll(".page");
+    let content = "";
+    pages.forEach(page => {
+        content += page.innerHTML;
+    });
+    return content;
+    };
+
 
     function appendMessage(user, text) {
         const isSelf = user === "{{ request.user.first_name }}";
@@ -317,6 +336,51 @@
             }
         });
     }
+    // ======= AI: GENEROWANIE TEKSTU W TLE =======
+    const aiStatusEl = document.getElementById("ai-status");
+    const aiOutputEl = document.getElementById("ai-output");
+    const aiCopyBtn = document.getElementById("ai-copy-btn");
+
+    const aiGenerateUrl = window.location.pathname.replace(/\/$/, '') + `/ai/generate`;
+
+    window.requestAiGenerate = function(textWithMarker) {
+        if (!textWithMarker) return;
+
+        if (aiStatusEl) aiStatusEl.textContent = "Generuję tekst...";
+        if (aiOutputEl) aiOutputEl.value = "";
+        if (aiCopyBtn) aiCopyBtn.disabled = true;
+
+        fetch(aiGenerateUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken,
+            },
+            body: JSON.stringify({ text: textWithMarker }),
+        })
+        .then((r) => r.json())
+        .then((data) => {
+            if (!data.ok) {
+                if (aiStatusEl) aiStatusEl.textContent = "Błąd generowania tekstu";
+                return;
+            }
+            const fullText = data.result || "";
+            if (aiStatusEl) aiStatusEl.textContent = "Gotowe – skopiuj i wklej w dokumencie";
+            if (aiOutputEl) aiOutputEl.innerText = fullText;
+            if (aiCopyBtn) aiCopyBtn.disabled = !fullText;
+        })
+        .catch(() => {
+            if (aiStatusEl) aiStatusEl.textContent = "Błąd sieci podczas generowania";
+        });
+    };
+
+        if (aiCopyBtn) {
+            aiCopyBtn.addEventListener("click", () => {
+                const text = aiOutputEl.innerText;
+                if (!text) return;
+                navigator.clipboard.writeText(text);
+            });
+        }
 
     titleEl.addEventListener("input", () => {
         const newTitle = titleEl.innerText;
