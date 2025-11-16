@@ -221,7 +221,9 @@
         <div id="chat">
             <div id="chatBox">
                 {% for msg in chat_history %}
-                    <p><b>{{ msg.user.first_name }}:</b> {{ msg.content }}</p>
+                    <p class="{% if msg.user.id == request.user.id %}self{% else %}other{% endif %}">
+                        <b>{{ msg.user.first_name }}:</b> {{ msg.content }}
+                    </p>
                 {% empty %}
                     <p><i>Brak wiadomości.</i></p>
                 {% endfor %}
@@ -276,7 +278,7 @@
     }
 
     function appendMessage(user, text) {
-        const isSelf = user === "{{ request.user.first_name }}";  // lub użyj username jeśli chcesz
+        const isSelf = user === "{{ request.user.first_name }}";
         const messageClass = isSelf ? "self" : "other";
         $('#chatBox').append(`<p class="${messageClass}"><b>${user}:</b> ${text}</p>`);
         const box = document.getElementById('chatBox');
