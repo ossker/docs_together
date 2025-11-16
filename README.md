@@ -49,6 +49,7 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
+Skopiuj .env-example oraz usuń '-example' z nazwy pliku tak aby powstał '.env'
 Włącz dockera i zbuduj projekt będąc na poziomie docker-compose.yml
 ```bash
 docker compose up --build

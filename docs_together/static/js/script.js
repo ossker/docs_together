@@ -12,72 +12,152 @@ let scriptButtons = document.querySelectorAll(".script");
 
 let fontList = [ "Arial", "Verdana", "Times New Roman", "Garamond", "Georgia", "Courier New", "cursive" ];
 
-
 const A4_HEIGHT_PX = 1122;
 
-const createNewPage = () => {
+// ======= OBSERVER STRON =======
+const observePage = (page) => {
+  const observer = new MutationObserver(() => {
+    if (page.classList.contains("newly-created")) return;
+
+    const allPages = Array.from(writingArea.querySelectorAll(".page"));
+    if (allPages.length === 1) return;
+
+    const isEmpty =
+      page.innerText.trim() === "" &&
+      page.querySelectorAll("img, video, iframe, div").length === 0;
+
+    if (isEmpty) {
+      const currentIndex = allPages.indexOf(page);
+      const previousPage = allPages[currentIndex - 1];
+
+      const isPageActive = document.activeElement === page;
+
+      page.remove();
+
+      if (isPageActive && previousPage) {
+        previousPage.focus();
+        const range = document.createRange();
+        const sel = window.getSelection();
+
+        if (previousPage.lastChild) {
+          range.selectNodeContents(previousPage);
+          range.collapse(false);
+        } else {
+          const br = document.createElement("br");
+          previousPage.appendChild(br);
+          range.setStartAfter(br);
+        }
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+  });
+
+  observer.observe(page, {
+    childList: true,
+    characterData: true,
+    subtree: true,
+  });
+};
+
+// ======= TWORZENIE NOWEJ STRONY =======
+const createNewPage = (initialContent = "") => {
   const page = document.createElement("div");
-  page.classList.add("page");
+  page.classList.add("page", "newly-created");
   page.setAttribute("contenteditable", "true");
+  page.innerHTML = initialContent || "<br>";
   writingArea.appendChild(page);
+
+  observePage(page);
+  page.focus();
+
+  setTimeout(() => page.classList.remove("newly-created"), 50);
+
   return page;
 };
 
+// ======= SPRAWDZANIE PRZEPŁYWU TEKSTU =======
 const checkPageOverflow = (e) => {
   const currentPage = e.target.closest(".page");
   if (!currentPage) return;
 
-  while (currentPage.scrollHeight > currentPage.clientHeight) {
-    const pages = Array.from(writingArea.querySelectorAll(".page"));
-    const currentPageIndex = pages.indexOf(currentPage);
-    let nextPage = pages[currentPageIndex + 1];
+  let pages = Array.from(writingArea.querySelectorAll(".page"));
+  let currentPageIndex = pages.indexOf(currentPage);
 
+  while (currentPage.scrollHeight > currentPage.clientHeight) {
+    let nextPage = pages[currentPageIndex + 1];
     if (!nextPage) {
       nextPage = createNewPage();
+      pages.push(nextPage);
     }
 
-    const lastElement = currentPage.lastElementChild;
-    if (lastElement) {
-      nextPage.insertBefore(lastElement, nextPage.firstChild);
-    } else {
-      break;
-    }
+    const children = Array.from(currentPage.childNodes);
+    const lastChild = children[children.length - 1];
+    if (!lastChild) break;
+
+    nextPage.insertBefore(lastChild, nextPage.firstChild);
+
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.setStartAfter(lastChild);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    currentPageIndex = pages.indexOf(currentPage);
   }
 };
 
+// ======= INICJALIZACJA =======
 const initializer = (initialHtmlContent) => {
-  highlighter(alignButtons, true);
-  highlighter(spacingButtons, true);
-  highlighter(formatButtons, false);
-  highlighter(scriptButtons, true);
+    highlighter(alignButtons, true);
+    highlighter(spacingButtons, true);
+    highlighter(formatButtons, false);
+    highlighter(scriptButtons, true);
 
-  fontList.forEach((value) => {
-    let option = document.createElement("option");
-    option.value = value;
-    option.textContent = value;
-    fontName.appendChild(option);
-  });
+    // fonts
+    fontList.forEach((value) => {
+        let option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        fontName.appendChild(option);
+    });
 
-  for (let i = 1; i <= 7; i++) {
-    let option = document.createElement("option");
-    option.value = i;
-    option.textContent = i;
-    fontSizeRef.appendChild(option);
-  }
-  fontSizeRef.value = 3;
+    for (let i = 1; i <= 7; i++) {
+        let option = document.createElement("option");
+        option.value = i;
+        option.textContent = i;
+        fontSizeRef.appendChild(option);
+    }
+    fontSizeRef.value = 3;
 
-  const firstPage = createNewPage();
+    writingArea.innerHTML = "";
 
-  if (initialHtmlContent) {
-    firstPage.innerHTML = initialHtmlContent;
-  }
+    if (initialHtmlContent && initialHtmlContent.trim() !== "") {
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = initialHtmlContent;
 
-  firstPage.focus();
+      if (tempDiv.querySelector(".page")) {
+        writingArea.innerHTML = initialHtmlContent;
+      } else {
+        createNewPage(initialHtmlContent);
+      }
+    } else {
+      createNewPage();
+    }
 
-  writingArea.addEventListener("input", checkPageOverflow);
-  writingArea.addEventListener("paste", handlePaste);
+writingArea.querySelectorAll(".page").forEach(observePage);
+
+    writingArea.querySelectorAll(".page").forEach(observePage);
+
+    writingArea.addEventListener("input", checkPageOverflow);
+    writingArea.addEventListener("paste", handlePaste);
+
+    const firstPage = writingArea.querySelector(".page");
+    if (firstPage) firstPage.focus();
 };
 
+// ======= MODYFIKACJA TEKSTU =======
 const modifyText = (command, defaultUi, value) => {
   document.execCommand(command, defaultUi, value);
 };
@@ -103,6 +183,7 @@ linkButton.addEventListener("click", () => {
   modifyText("createLink", false, userLink);
 });
 
+// ======= HIGHLIGHTER =======
 const highlighter = (className, needsRemoval) => {
   className.forEach((button) => {
     button.addEventListener("click", () => {
@@ -121,6 +202,7 @@ const highlighterRemover = (className) => {
   className.forEach((button) => button.classList.remove("active"));
 };
 
+// ======= Wklejanie obrazków =======
 const handlePaste = (e) => {
   const items = e.clipboardData?.items;
   if (!items) return;
@@ -145,6 +227,7 @@ const handlePaste = (e) => {
   setTimeout(() => checkPageOverflow({ target: document.activeElement }), 50);
 };
 
+// ======= Wstawianie obrazków =======
 function insertImageAtCursor(imageElement) {
   const selection = window.getSelection();
   if (!selection || !selection.rangeCount) {
@@ -163,6 +246,7 @@ function insertImageAtCursor(imageElement) {
   makeImageDraggable(imageElement);
 }
 
+// ======= RESIZE OBRAZKÓW =======
 function makeImageResizable(img) {
   if (img.parentElement.classList.contains("resizable-wrapper")) return;
   const wrapper = document.createElement("div");
@@ -234,6 +318,7 @@ function makeImageResizable(img) {
   });
 }
 
+// ======= DRAG OBRAZKÓW =======
 function makeImageDraggable(img) {
   const wrapper = img.closest('.resizable-wrapper');
   if (!wrapper) return;
