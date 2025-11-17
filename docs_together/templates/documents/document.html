@@ -14,7 +14,9 @@
 {% block content %}
 
 <div class="page-main-header">
-    <h1 class="document-title">{{ document.title }}</h1>
+    <h1 id="editableTitle" class="document-title" contenteditable="true">
+        {{ document.title }}
+    </h1>
 </div>
 
 <div class="editor-chat-wrapper">
@@ -210,6 +212,12 @@
                     <span class="ecm-label">Wklej tylko tekst</span>
                     <span class="ecm-shortcut">Ctrl+Shift+V</span>
                 </button>
+                <button class="ecm-item" data-action="ai-generate">
+                    <span class="ecm-label">Generuj tekst (AI)</span>
+                    <span class="ecm-shortcut"></span>
+                </button>
+
+
             </div>
         </div>
 
@@ -239,6 +247,18 @@
                 <button id="sendBtn"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
         </div>
+            <div id="ai-tools">
+                <div class="ai-header">
+                    <h3>Asystent AI</h3>
+                    <button id="ai-copy-btn" class="ai-copy-btn" title="Kopiuj">
+                        <i class="fa-solid fa-copy"></i>
+                    </button>
+                </div>
+
+                <div id="ai-status" class="ai-status"></div>
+
+                <div id="ai-output" class="ai-output"></div>
+            </div>
 
     </div>
 
@@ -258,6 +278,15 @@
     let lastSavedContent = writingArea.innerHTML;
     const saveUrl = window.location.pathname.replace(/\/$/, '') + `/save`;
     const csrfToken = '{{ csrf_token }}';
+    const titleEl = document.getElementById("editableTitle");
+    let titleSaveTimeout;
+
+    function queueTitleSave(newTitle) {
+        clearTimeout(titleSaveTimeout);
+        titleSaveTimeout = setTimeout(() => {
+            saveDocument(newTitle, writingArea.innerHTML);
+        }, 800);
+    }
 
     function saveSelection() {
         const sel = window.getSelection();
@@ -274,14 +303,15 @@
         sel.addRange(range);
     }
 
-    function getDocumentContent() {
-        const pages = writingArea.querySelectorAll(".page");
-        let content = "";
-        pages.forEach(page => {
-            content += page.innerHTML; // tylko wnętrze strony
-        });
-        return content;
-    }
+    window.getDocumentContent = function() {
+    const pages = writingArea.querySelectorAll(".page");
+    let content = "";
+    pages.forEach(page => {
+        content += page.innerHTML;
+    });
+    return content;
+    };
+
 
     function appendMessage(user, text) {
         const now = new Date();
@@ -319,6 +349,22 @@
         box.scrollTop = box.scrollHeight;
     }
 
+    function sendCaretPosition() {
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+
+        socket.send(JSON.stringify({
+            type: "caret_position",
+            x: rect.left,
+            y: rect.top,
+        }));
+    }
+
+    writingArea.addEventListener("keyup", sendCaretPosition);
+    writingArea.addEventListener("mouseup", sendCaretPosition);
+
     function saveDocument(title, content) {
         $.ajax({
             url: saveUrl,
@@ -337,6 +383,62 @@
             }
         });
     }
+    // ======= AI: GENEROWANIE TEKSTU W TLE =======
+    const aiStatusEl = document.getElementById("ai-status");
+    const aiOutputEl = document.getElementById("ai-output");
+    const aiCopyBtn = document.getElementById("ai-copy-btn");
+
+    const aiGenerateUrl = window.location.pathname.replace(/\/$/, '') + `/ai/generate`;
+
+    window.requestAiGenerate = function(textWithMarker) {
+        if (!textWithMarker) return;
+
+        if (aiStatusEl) aiStatusEl.textContent = "Generuję tekst...";
+        if (aiOutputEl) aiOutputEl.value = "";
+        if (aiCopyBtn) aiCopyBtn.disabled = true;
+
+        fetch(aiGenerateUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken,
+            },
+            body: JSON.stringify({ text: textWithMarker }),
+        })
+        .then((r) => r.json())
+        .then((data) => {
+            if (!data.ok) {
+                if (aiStatusEl) aiStatusEl.textContent = "Błąd generowania tekstu";
+                return;
+            }
+            const fullText = data.result || "";
+            if (aiStatusEl) aiStatusEl.textContent = "Gotowe – skopiuj i wklej w dokumencie";
+            if (aiOutputEl) aiOutputEl.innerText = fullText;
+            if (aiCopyBtn) aiCopyBtn.disabled = !fullText;
+        })
+        .catch(() => {
+            if (aiStatusEl) aiStatusEl.textContent = "Błąd sieci podczas generowania";
+        });
+    };
+
+        if (aiCopyBtn) {
+            aiCopyBtn.addEventListener("click", () => {
+                const text = aiOutputEl.innerText;
+                if (!text) return;
+                navigator.clipboard.writeText(text);
+            });
+        }
+
+    titleEl.addEventListener("input", () => {
+        const newTitle = titleEl.innerText;
+
+        socket.send(JSON.stringify({
+            type: "update_title",
+            title: newTitle,
+        }));
+
+        queueTitleSave(newTitle);
+    });
 
     writingArea.addEventListener("input", () => {
         const currentContent = writingArea.innerHTML;
@@ -346,6 +448,7 @@
         }));
 
     });
+
     socket.onmessage = function(e) {
         const data = JSON.parse(e.data);
         if (data.message_type === 'update_content') {
@@ -369,14 +472,83 @@
         else if (data.message_type === "presence") {
             const list = document.getElementById("presence-users");
             list.innerHTML = "";
-            data.users.forEach(user => {
+            Object.entries(data.users).forEach(([username, color]) => {
                 const li = document.createElement("li");
-                li.textContent = user;
+                const dot = document.createElement("span");
+                dot.style.backgroundColor = color;
+                dot.className = "presence-dot"; // styl w CSS
+                li.appendChild(dot);
+                li.appendChild(document.createTextNode(username));
                 list.appendChild(li);
             });
+        }
+        else if (data.message_type === "update_title") {
+            if (document.activeElement !== titleEl) {
+                titleEl.innerText = data.title;
+            }
+            document.title = data.title;
             return;
         }
+        else if (data.message_type === "cursor") {
+            if (data.user === "{{ request.user.first_name }}") return;
+            let cursorEl = document.getElementById(`cursor-${data.user}`);
+            if (!cursorEl) {
+                cursorEl = document.createElement("div");
+                cursorEl.id = `cursor-${data.user}`;
+                cursorEl.className = "remote-cursor";
+                cursorEl.style.position = "absolute";
+                cursorEl.style.width = "10px";
+                cursorEl.style.height = "10px";
+                cursorEl.style.borderRadius = "50%";
+                cursorEl.style.pointerEvents = "none";
+                cursorEl.style.zIndex = "1000";
+                document.body.appendChild(cursorEl);
+            }
+            cursorEl.style.left = data.x + "px";
+            cursorEl.style.top = data.y + "px";
+            cursorEl.style.backgroundColor = data.color;
+
+            let labelEl = document.getElementById(`cursor-label-${data.user}`);
+            if (!labelEl) {
+                labelEl = document.createElement("div");
+                labelEl.id = `cursor-label-${data.user}`;
+                labelEl.className = "remote-cursor-label";
+                labelEl.textContent = data.user;
+                labelEl.style.color = data.color;
+                document.body.appendChild(labelEl);
+            }
+            labelEl.style.left = (data.x + 15) + "px"; // trochę w prawo
+            labelEl.style.top = (data.y - 15) + "px";  // trochę nad
+        }
+        else if (data.message_type === "caret") {
+            if (data.user === "{{ request.user.first_name }}") return;
+
+            let caretEl = document.getElementById(`caret-${data.user}`);
+            if (!caretEl) {
+                caretEl = document.createElement("div");
+                caretEl.id = `caret-${data.user}`;
+                caretEl.className = "remote-caret";
+                caretEl.style.position = "absolute";
+                caretEl.style.width = "2px";   // typowa szerokość caret
+                caretEl.style.height = "1em";  // dopasowana do linii
+                caretEl.style.zIndex = "1001";
+                caretEl.style.pointerEvents = "none";
+                caretEl.style.transition = "left 0.05s linear, top 0.05s linear";
+                document.body.appendChild(caretEl);
+            }
+            caretEl.style.left = data.x + "px";
+            caretEl.style.top = data.y + "px";
+            caretEl.style.backgroundColor = data.color;
+        }
     };
+
+    document.addEventListener("mousemove", (e) => {
+            socket.send(JSON.stringify({
+                type: "cursor_move",
+                x: e.clientX,
+                y: e.clientY
+            }));
+        });
 
     $('#sendBtn').click(function() {
         const message = $('#chatInput').val();
@@ -392,23 +564,24 @@
 
 
     writingArea.addEventListener("input", () => {
-    const title = "{{ document.title }}";
-    const content = writingArea.innerHTML;
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => saveDocument(title, content), 3000);
-});
+        const title = titleEl.innerText;
+        const content = writingArea.innerHTML;
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => saveDocument(title, content), 3000);
+    });
 
     window.addEventListener('beforeunload', function (e) {
         const currentContent = writingArea.innerHTML;
         if (currentContent !== lastSavedContent) {
             navigator.sendBeacon(saveUrl, new URLSearchParams({
-                title: "{{ document.title }}",
+                title: titleEl.innerText,
                 content: currentContent,
                 csrfmiddlewaretoken: csrfToken
             }));
         }
     });
-window.addEventListener("load", () => {
+
+    window.addEventListener("load", () => {
         initializer(initialContent);
 
         const chatBox = document.getElementById('chatBox');

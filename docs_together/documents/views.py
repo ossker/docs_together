@@ -1,12 +1,17 @@
+import os
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from .decorators import owner_or_collaborator_required, owner_required
 from .models import Document, DocumentInvitation, DocumentChangelog
-from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from diff_match_patch import diff_match_patch
+from django.http import JsonResponse, HttpResponse
+from django.template.loader import render_to_string
+from bs4 import BeautifulSoup
+from django.contrib.auth import get_user_model
 
+User = get_user_model()
 
 @login_required
 def view_documents(request):
@@ -78,7 +83,7 @@ def save_document(request, document_id):
         document.content = new_content
         document.date_edited = timezone.now()
         document.summary_pending = True
-        document.save(update_fields=["content", "date_edited", "summary_pending"])
+        document.save(update_fields=["title", "content", "date_edited", "summary_pending"])
 
         return JsonResponse({"status": "ok"})
 
@@ -91,8 +96,7 @@ def delete_document(request, document_id):
     if request.method == "POST":
         document = Document.objects.get(pk=document_id)
         document.delete()
-        return JsonResponse({"status": "ok"})
-    return JsonResponse({"error": "invalid method"}, status=405)
+    return redirect('documents:documents')
 
 
 @login_required
@@ -132,3 +136,47 @@ def view_document_changelog(request, document_id, document_changelog_id):
         difference = dmp.diff_prettyHtml(diffs)
 
     return render(request, "documents/changelog.html", {"changelog": changelog, "difference": difference})
+
+
+@login_required
+@owner_or_collaborator_required
+def export_document(request, document_id):
+    document = get_object_or_404(Document, id=document_id)
+    html_content = render_to_string("documents/export_template.html", {"document": document})
+    response = HttpResponse(html_content, content_type='text/html')
+    response['Content-Disposition'] = f'attachment; filename="{document.title}.html"'
+    response.write(html_content)
+    return response
+
+@login_required
+def import_document(request):
+    if request.method == "POST" and request.FILES.get("file"):
+        uploaded_file = request.FILES["file"]
+        html_text = uploaded_file.read().decode("utf-8")
+        title = os.path.splitext(uploaded_file.name)[0]
+        soup = BeautifulSoup(html_text, "html.parser")
+        body_content = soup.body.decode_contents() if soup.body else html_text
+
+        document = Document.objects.create(
+            title=title,
+            content=body_content,
+            owner=request.user,
+            date_created=timezone.now(),
+            date_edited=timezone.now()
+        )
+        return redirect("documents:document", document.id)
+    return render(request, "documents/upload.html")
+
+
+@login_required
+@owner_required
+def remove_collaborator(request, document_id, user_id):
+    if request.method == "POST":
+        document = get_object_or_404(Document, pk=document_id)
+        user_to_remove = get_object_or_404(User, pk=user_id)
+
+        if user_to_remove == document.owner:
+            return JsonResponse({"error": "Nie możesz usunąć właściciela dokumentu"}, status=400)
+
+        document.collaborators.remove(user_to_remove)
+    return redirect('documents:documents')

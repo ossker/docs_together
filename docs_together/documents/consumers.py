@@ -2,6 +2,12 @@ import json
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+import random
+
+COLORS = [
+    "#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231",
+    "#911eb4", "#46f0f0", "#f032e6", "#bcf60c", "#fabebe"
+]
 
 class DocumentConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -14,9 +20,11 @@ class DocumentConsumer(AsyncWebsocketConsumer):
             self.channel_layer.presence = {}
 
         if self.room_group_name not in self.channel_layer.presence:
-            self.channel_layer.presence[self.room_group_name] = set()
+            self.channel_layer.presence[self.room_group_name] = {}
 
-        self.channel_layer.presence[self.room_group_name].add(self.username)
+        if self.username not in self.channel_layer.presence[self.room_group_name]:
+            color = random.choice(COLORS)
+            self.channel_layer.presence[self.room_group_name][self.username] = color
 
         await self.channel_layer.group_add(
             self.room_group_name,
@@ -29,7 +37,7 @@ class DocumentConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event))
 
     async def send_presence_update(self):
-        users = list(self.channel_layer.presence[self.room_group_name])
+        users = self.channel_layer.presence[self.room_group_name]
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -41,7 +49,8 @@ class DocumentConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         if self.room_group_name in self.channel_layer.presence:
-            self.channel_layer.presence[self.room_group_name].discard(self.username)
+            if self.username in self.channel_layer.presence[self.room_group_name]:
+                del self.channel_layer.presence[self.room_group_name][self.username]
 
         await self.channel_layer.group_discard(
             self.room_group_name,
@@ -64,6 +73,47 @@ class DocumentConsumer(AsyncWebsocketConsumer):
                 user=user,
                 content=content
             )
+
+        elif msg_type == "update_title":
+            new_title = data.get("title", "")
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "broadcast",
+                    "message_type": "update_title",
+                    "title": new_title,
+                    "user": self.username,
+                }
+            )
+            return
+
+        elif msg_type == "cursor_move":
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "broadcast",
+                    "message_type": "cursor",
+                    "user": self.username,
+                    "color": self.channel_layer.presence[self.room_group_name][self.username],
+                    "x": data["x"],
+                    "y": data["y"]
+                }
+            )
+            return
+
+        elif msg_type == "caret_position":
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "broadcast",
+                    "message_type": "caret",
+                    "user": self.username,
+                    "color": self.channel_layer.presence[self.room_group_name][self.username],
+                    "x": data["x"],
+                    "y": data["y"],
+                }
+            )
+            return
 
         await self.channel_layer.group_send(
             self.room_group_name,
