@@ -78,34 +78,169 @@ const createNewPage = (initialContent = "") => {
 
 // ======= SPRAWDZANIE PRZEPŁYWU TEKSTU =======
 const checkPageOverflow = (e) => {
-  const currentPage = e.target.closest(".page");
-  if (!currentPage) return;
+    const triggerPage = e.target.closest(".page");
+    if (!triggerPage) return;
 
-  let pages = Array.from(writingArea.querySelectorAll(".page"));
-  let currentPageIndex = pages.indexOf(currentPage);
+    let allPages = Array.from(writingArea.querySelectorAll(".page"));
+    let startIndex = allPages.indexOf(triggerPage);
+    if (startIndex === -1) return;
 
-  while (currentPage.scrollHeight > currentPage.clientHeight) {
-    let nextPage = pages[currentPageIndex + 1];
-    if (!nextPage) {
-      nextPage = createNewPage();
-      pages.push(nextPage);
+    for (let i = startIndex; i < allPages.length; i++) {
+        const currentPage = allPages[i];
+        
+        while (currentPage.scrollHeight > currentPage.clientHeight) {
+            let nextPage = allPages[i + 1];
+
+            if (!nextPage) {
+                nextPage = createNewPage();
+                allPages.push(nextPage);
+            }
+
+            const fragment = document.createDocumentFragment();
+            
+            while (currentPage.scrollHeight > currentPage.clientHeight && currentPage.lastChild) {
+                fragment.insertBefore(currentPage.lastChild, fragment.firstChild);
+            }
+
+            if (fragment.childNodes.length > 0) {
+                nextPage.insertBefore(fragment, nextPage.firstChild);
+            } else {
+                break;
+            }
+        }
+    }
+};
+
+
+// ======= OBSŁUGA ZAZNACZANIA CAŁOŚCI (CTRL+A) =======
+const handleSelectAll = (e) => {
+    if (e.key.toLowerCase() === 'a' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+
+        const selection = window.getSelection();
+        if (!selection) return;
+
+        const firstPage = writingArea.querySelector(".page:first-child");
+        const lastPage = writingArea.querySelector(".page:last-child");
+
+        if (!firstPage || !lastPage) return;
+
+        const range = document.createRange();
+
+        range.setStart(firstPage, 0);
+
+        range.setEnd(lastPage, lastPage.childNodes.length);
+
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+};
+
+const handleMultiPageInput = (e) => {
+    if (e.ctrlKey || e.altKey || e.metaKey) {
+        return;
     }
 
-    const children = Array.from(currentPage.childNodes);
-    const lastChild = children[children.length - 1];
-    if (!lastChild) break;
+    const selection = window.getSelection();
 
-    nextPage.insertBefore(lastChild, nextPage.firstChild);
+    if (!selection || selection.rangeCount === 0 || selection.toString().length === 0) {
+        return;
+    }
 
-    const sel = window.getSelection();
-    const range = document.createRange();
-    range.setStartAfter(lastChild);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
+    const range = selection.getRangeAt(0);
+    const startPage = range.startContainer.closest('.page');
+    const endPage = range.endContainer.closest('.page');
 
-    currentPageIndex = pages.indexOf(currentPage);
-  }
+    if (startPage && endPage && startPage !== endPage) {
+        
+        const ignoredKeys = [
+            'Control', 'Shift', 'Alt', 'Meta', 'CapsLock', 'Escape',
+            'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+            'Home', 'End', 'PageUp', 'PageDown', 'Insert', 'Tab',
+            'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'
+        ];
+
+        if (ignoredKeys.includes(e.key)) {
+            return;
+        }
+
+        e.preventDefault();
+
+        writingArea.innerHTML = '';
+        
+        const newPage = createNewPage();
+
+        if (e.key !== 'Delete' && e.key !== 'Backspace' && e.key !== 'Enter') {
+            newPage.innerHTML = ''; 
+            document.execCommand('insertText', false, e.key);
+        }
+    }
+};
+
+// ======= OBSŁUGA ZAZNACZANIA MYSZKĄ NA WIELU STRONACH =======
+const enableFinalCrossPageSelection = () => {
+    let isSelecting = false;
+    let startRange = null;
+
+    writingArea.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+
+        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+
+        if (range) {
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+        isSelecting = true;
+        startRange = range;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isSelecting || !startRange) {
+            return;
+        }
+
+        const currentRange = document.caretRangeFromPoint(e.clientX, e.clientY);
+        if (!currentRange) return;
+
+        const selection = window.getSelection();
+        const newRange = document.createRange();
+
+        const isBackwards = startRange.compareBoundaryPoints(Range.START_TO_START, currentRange) > 0;
+
+        if (isBackwards) {
+            newRange.setStart(currentRange.startContainer, currentRange.startOffset);
+            newRange.setEnd(startRange.startContainer, startRange.startOffset);
+        } else {
+            newRange.setStart(startRange.startContainer, startRange.startOffset);
+            newRange.setEnd(currentRange.startContainer, currentRange.startOffset);
+        }
+
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+    });
+
+    window.addEventListener('mouseup', () => {
+        isSelecting = false;
+        startRange = null;
+    });
+};
+
+const updateToolbar = () => {
+    formatButtons.forEach(button => {
+        const command = button.id;
+        const isActive = document.queryCommandState(command);
+        button.classList.toggle('active', isActive);
+    });
+
+    alignButtons.forEach(button => {
+        const command = button.id;
+        const isActive = document.queryCommandState(command);
+        button.classList.toggle('active', isActive);
+    });
+    
 };
 
 // ======= INICJALIZACJA =======
@@ -115,7 +250,6 @@ const initializer = (initialHtmlContent) => {
     highlighter(formatButtons, false);
     highlighter(scriptButtons, true);
 
-    // fonts
     fontList.forEach((value) => {
         let option = document.createElement("option");
         option.value = value;
@@ -146,15 +280,23 @@ const initializer = (initialHtmlContent) => {
       createNewPage();
     }
 
-writingArea.querySelectorAll(".page").forEach(observePage);
-
     writingArea.querySelectorAll(".page").forEach(observePage);
 
     writingArea.addEventListener("input", checkPageOverflow);
     writingArea.addEventListener("paste", handlePaste);
+    writingArea.addEventListener("keydown", handleSelectAll, true);
+    writingArea.addEventListener("keydown", handleMultiPageInput, true);
+    enableFinalCrossPageSelection();
+
+    writingArea.addEventListener('dragstart', (e) => e.preventDefault());
+
+    writingArea.addEventListener('mouseup', updateToolbar); 
+    writingArea.addEventListener('keyup', updateToolbar); 
+
 
     const firstPage = writingArea.querySelector(".page");
     if (firstPage) firstPage.focus();
+    updateToolbar(); 
 };
 
 // ======= MODYFIKACJA TEKSTU =======
@@ -204,27 +346,59 @@ const highlighterRemover = (className) => {
 
 // ======= Wklejanie obrazków =======
 const handlePaste = (e) => {
-  const items = e.clipboardData?.items;
-  if (!items) return;
+    e.preventDefault();
+    const clipboardData = e.clipboardData;
+    if (!clipboardData) return;
 
-  for (const item of items) {
-    if (item.type.startsWith("image/")) {
-      e.preventDefault();
-      const file = item.getAsFile();
-      const reader = new FileReader();
-
-      reader.onload = function (event) {
-        const img = document.createElement("img");
-        img.src = event.target.result;
-        img.style.maxWidth = "100%";
-        img.style.borderRadius = "6px";
-        img.alt = "Wklejony obraz";
-        insertImageAtCursor(img);
-      };
-      reader.readAsDataURL(file);
+    const imageItem = Array.from(clipboardData.items).find(item => item.type.startsWith("image/"));
+    if (imageItem) {
+        const file = imageItem.getAsFile();
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const img = document.createElement("img");
+                img.src = event.target.result;
+                img.style.maxWidth = "100%";
+                img.style.borderRadius = "6px";
+                img.alt = "Wklejony obraz";
+                insertImageAtCursor(img);
+                setTimeout(() => checkPageOverflow({ target: document.activeElement.closest('.page') }), 50);
+            };
+            reader.readAsDataURL(file);
+        }
+        return;
     }
-  }
-  setTimeout(() => checkPageOverflow({ target: document.activeElement }), 50);
+
+    const pastedHtml = clipboardData.getData("text/html");
+    if (pastedHtml && pastedHtml.includes('class="page"')) {
+        document.execCommand("insertHTML", false, pastedHtml);
+    } 
+    else {
+        const pastedText = clipboardData.getData("text/plain");
+        if (pastedText) {
+            const lines = pastedText.split(/\r?\n/);
+            const fragment = document.createDocumentFragment();
+            lines.forEach(line => {
+                const p = document.createElement("div");
+                p.innerHTML = line.trim() === "" ? "<br>" : line;
+                fragment.appendChild(p);
+            });
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                range.deleteContents();
+                range.insertNode(fragment);
+                selection.collapseToEnd();
+            }
+        }
+    }
+
+    setTimeout(() => {
+        const activePage = document.activeElement.closest('.page');
+        if (activePage) {
+            checkPageOverflow({ target: activePage });
+        }
+    }, 100);
 };
 
 // ======= Wstawianie obrazków =======
@@ -369,6 +543,10 @@ writingArea.addEventListener("drop", (e) => {
     checkPageOverflow({ target: draggedWrapper });
   }, 50);
 });
+
+
+
+
 // ======= MENU KONTEKSTOWE: MINI TOOLBAR + AKCJE =======
 if (writingArea) {
   const contextMenu = document.getElementById("editor-context-menu");
