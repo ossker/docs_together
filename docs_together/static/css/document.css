@@ -13,6 +13,46 @@ body {
 }
 
 /* ================================== */
+/*            CURSOR / CARET          */
+/* ================================== */
+.presence-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.remote-cursor {
+    transition: left 0.05s linear, top 0.05s linear;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    position: absolute;
+    pointer-events: none;
+    z-index: 1000;
+}
+.remote-cursor-label {
+    position: absolute;
+    font-size: 0.8rem;
+    font-weight: bold;
+    pointer-events: none;
+    transform: translate(0, -100%);
+    white-space: nowrap;
+    z-index: 1001;
+}
+
+.remote-caret {
+    border-left: 2px solid;
+    animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+    to { visibility: hidden; }
+}
+
+/* ================================== */
 /*            PASEK MENU              */
 /* ================================== */
 
@@ -461,14 +501,6 @@ input[type="color"]::-moz-color-swatch { border-radius: 15px; box-shadow: 0 0 0 
     color: #333;
 }
 
-#presence-users li::before {
-    content: "";
-    width: 10px;
-    height: 10px;
-    background: #2ecc71;
-    border-radius: 50%;
-    display: inline-block;
-}
 /* ================================== */
 /*        MENU KONTEKSTOWE EDITORA    */
 /* ================================== */

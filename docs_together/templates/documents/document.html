@@ -318,6 +318,22 @@
         box.scrollTop = box.scrollHeight;
     }
 
+    function sendCaretPosition() {
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+
+        socket.send(JSON.stringify({
+            type: "caret_position",
+            x: rect.left,
+            y: rect.top,
+        }));
+    }
+
+    writingArea.addEventListener("keyup", sendCaretPosition);
+    writingArea.addEventListener("mouseup", sendCaretPosition);
+
     function saveDocument(title, content) {
         $.ajax({
             url: saveUrl,
@@ -425,12 +441,15 @@
         else if (data.message_type === "presence") {
             const list = document.getElementById("presence-users");
             list.innerHTML = "";
-            data.users.forEach(user => {
+            Object.entries(data.users).forEach(([username, color]) => {
                 const li = document.createElement("li");
-                li.textContent = user;
+                const dot = document.createElement("span");
+                dot.style.backgroundColor = color;
+                dot.className = "presence-dot"; // styl w CSS
+                li.appendChild(dot);
+                li.appendChild(document.createTextNode(username));
                 list.appendChild(li);
             });
-            return;
         }
         else if (data.message_type === "update_title") {
             if (document.activeElement !== titleEl) {
@@ -439,7 +458,66 @@
             document.title = data.title;
             return;
         }
+        else if (data.message_type === "cursor") {
+            if (data.user === "{{ request.user.first_name }}") return;
+            let cursorEl = document.getElementById(`cursor-${data.user}`);
+            if (!cursorEl) {
+                cursorEl = document.createElement("div");
+                cursorEl.id = `cursor-${data.user}`;
+                cursorEl.className = "remote-cursor";
+                cursorEl.style.position = "absolute";
+                cursorEl.style.width = "10px";
+                cursorEl.style.height = "10px";
+                cursorEl.style.borderRadius = "50%";
+                cursorEl.style.pointerEvents = "none";
+                cursorEl.style.zIndex = "1000";
+                document.body.appendChild(cursorEl);
+            }
+            cursorEl.style.left = data.x + "px";
+            cursorEl.style.top = data.y + "px";
+            cursorEl.style.backgroundColor = data.color;
+
+            let labelEl = document.getElementById(`cursor-label-${data.user}`);
+            if (!labelEl) {
+                labelEl = document.createElement("div");
+                labelEl.id = `cursor-label-${data.user}`;
+                labelEl.className = "remote-cursor-label";
+                labelEl.textContent = data.user;
+                labelEl.style.color = data.color;
+                document.body.appendChild(labelEl);
+            }
+            labelEl.style.left = (data.x + 15) + "px"; // trochę w prawo
+            labelEl.style.top = (data.y - 15) + "px";  // trochę nad
+        }
+        else if (data.message_type === "caret") {
+            if (data.user === "{{ request.user.first_name }}") return;
+
+            let caretEl = document.getElementById(`caret-${data.user}`);
+            if (!caretEl) {
+                caretEl = document.createElement("div");
+                caretEl.id = `caret-${data.user}`;
+                caretEl.className = "remote-caret";
+                caretEl.style.position = "absolute";
+                caretEl.style.width = "2px";   // typowa szerokość caret
+                caretEl.style.height = "1em";  // dopasowana do linii
+                caretEl.style.zIndex = "1001";
+                caretEl.style.pointerEvents = "none";
+                caretEl.style.transition = "left 0.05s linear, top 0.05s linear";
+                document.body.appendChild(caretEl);
+            }
+            caretEl.style.left = data.x + "px";
+            caretEl.style.top = data.y + "px";
+            caretEl.style.backgroundColor = data.color;
+        }
     };
+
+    document.addEventListener("mousemove", (e) => {
+            socket.send(JSON.stringify({
+                type: "cursor_move",
+                x: e.clientX,
+                y: e.clientY
+            }));
+        });
 
     $('#sendBtn').click(function() {
         const message = $('#chatInput').val();
