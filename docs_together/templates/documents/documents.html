@@ -8,110 +8,178 @@ Dokumenty
 {% block extrahead %}
 <link rel="stylesheet" href="{% static 'css/documents.css' %}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" />
-<link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
 {% endblock %}
 
 {% block content %}
-<h1>Moje Dokumenty</h1>
-<a href="/documents/create"><button>Utwórz pusty dokument dokument</button></a>
-<form id="importForm" enctype="multipart/form-data">
-    {% csrf_token %}
-    <input type="file" name="file" accept=".json">
-    <button type="submit">Przekaż plik</button>
-</form>
+<div class="container">
+    <h1 class="section-title">Moje dokumenty</h1>
 
-<ul>
-    {% for document in owned_documents %}
-        <li class="document-card">
-            <a href="/documents/{{ document.id }}">
-                <div class="doc-preview">
-                    <div class="doc-preview-inner">
-                        {{ document.content|truncatechars_html:500|safe }}
+    <div class="top-actions">
+        <a href="/documents/create" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Utwórz pusty dokument</a>
+        <form id="importForm" enctype="multipart/form-data">
+            {% csrf_token %}
+            <label for="file-upload" class="btn btn-secondary">
+                <i class="fa-solid fa-arrow-up-from-bracket"></i> Przekaż plik
+            </label>
+            <input id="file-upload" type="file" name="file" accept=".json" style="display:none;">
+        </form>
+    </div>
+
+    <div class="documents-grid">
+        {% for document in owned_documents %}
+        <div class="document-card">
+            <div class="doc-preview">
+                <div class="doc-preview-inner">
+                    {{ document.content|truncatechars_html:300|safe }}
+                </div>
+            </div>
+            <div class="doc-info">
+                <h3 class="doc-title">{{ document.title }}</h3>
+                <p class="doc-summary"><strong>Podsumowanie:</strong> {{ document.summary_text|truncatechars:200 }}</p>
+                <div class="collaborators">
+                    <strong>Współtwórcy:</strong>
+                    <div class="collaborators-list">
+                        {% for user in document.collaborators.all %}
+                        <div class="collaborator-item">
+                            <span class="collaborator-status"></span>
+                            <span class="collaborator-name">{{ user.first_name }} {{ user.last_name }}</span>
+                            {% if request.user == document.owner %}
+                            <form method="POST" action="{% url 'documents:remove_collaborator' document.id user.id %}" onsubmit="return confirm('Na pewno chcesz usunąć współtwórcę?');" class="remove-collaborator-form">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-icon"><i class="fa-solid fa-trash-can"></i></button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <p class="no-collaborators">Brak współtwórców</p>
+                        {% endfor %}
                     </div>
                 </div>
-                <h3 class="doc-title">{{ document.title }}</h3>
-            </a>
-
-            <a href="/documents/{{ document.id }}/changelogs">
-                <button>Historia zmian</button>
-            </a>
-            <br>
-            <a href="/documents/{{ document.id }}/export">
-                <button>Pobierz dokument</button>
-            </a>
-            <br>
-            <form method="POST" action="{% url 'documents:delete_document' document.id %}" onsubmit="return confirm('Na pewno chcesz usunąć dokument?');">
-                {% csrf_token %}
-                <button type="submit">Usuń dokument</button>
-            </form>
-
-
-            <br>
-            <button class="invite-btn" data-doc-id="{{ document.id }}">Generuj jednorazowy link</button>
-            <input type="text" class="invite-link" readonly style="width: 80%;">
-
-            <div>
-                <strong>Współtwórcy:</strong>
-                {% for user in document.collaborators.all %}
-                    <p>{{ user.first_name }} {{ user.last_name }}</p>
-                    {% if request.user == document.owner %}
-                        <form method="POST" action="{% url 'documents:remove_collaborator' document.id user.id %}" onsubmit="return confirm('Na pewno chcesz usunąć współtwórcę?');">
-                            {% csrf_token %}
-                            <button type="submit">Usuń</button>
-                        </form>
-                    {% endif %}
-                {% empty %}
-                    brak współtwórców
-                {% endfor %}
+                <button class="btn btn-secondary invite-btn" data-doc-id="{{ document.id }}">Skopiuj jednorazowe zaproszenie</button>
+                <input type="text" class="invite-link" readonly>
             </div>
-            <p>{{ document.summary_text}}</p>
-        </li>
-    {% endfor %}
-</ul>
+            <div class="doc-actions">
+                <a href="/documents/{{ document.id }}" class="btn btn-primary">Otwórz</a>
+                <a href="/documents/{{ document.id }}/export" class="btn btn-primary-outline"><i class="fa-solid fa-download"></i> Pobierz</a>
+                <a href="/documents/{{ document.id }}/changelogs" class="btn btn-primary-outline">Historia zmian</a>
+                <form method="POST" action="{% url 'documents:delete_document' document.id %}" onsubmit="return confirm('Na pewno chcesz usunąć dokument?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger"><i class="fa-solid fa-trash-can"></i> Usuń</button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <p class="empty-list-info">Nie masz jeszcze żadnych dokumentów. Utwórz nowy!</p>
+        {% endfor %}
+    </div>
 
-<h1>Współtworzone dokumenty</h1>
-<ul>
-    {% for document in shared_documents %}
-        <li><a href="/documents/{{ document.id }}">{{ document.title }}</a></li>
-    {% empty %}
-        <li>Brak współtworzonych dokumentów.</li>
-    {% endfor %}
-</ul>
+    <div class="pagination">
+        <button class="page-arrow" disabled>&lt;</button>
+        <span>strona 1 z 2</span>
+        <button class="page-arrow">&gt;</button>
+    </div>
+
+    <h1 class="section-title">Dokumenty współtworzone</h1>
+    <div class="documents-grid">
+        {% for document in shared_documents %}
+        <div class="document-card">
+            <div class="doc-preview">
+                <div class="doc-preview-inner">
+                    {{ document.content|truncatechars_html:300|safe }}
+                </div>
+            </div>
+            <div class="doc-info">
+                <h3 class="doc-title">{{ document.title }}</h3>
+                <p class="doc-summary"><strong>Podsumowanie:</strong> {{ document.summary_text|truncatechars:200 }}</p>
+            </div>
+            <div class="doc-actions">
+                <a href="/documents/{{ document.id }}" class="btn btn-primary">Otwórz</a>
+                <a href="/documents/{{ document.id }}/export" class="btn btn-primary-outline"><i class="fa-solid fa-download"></i> Pobierz</a>
+                <a href="/documents/{{ document.id }}/changelogs" class="btn btn-primary-outline">Historia zmian</a>
+                <!-- Założenie: istnieje URL do opuszczania dokumentu -->
+                <form method="POST" action="#">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-secondary-outline">Odejdź(?)</button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <p class="empty-list-info">Brak dokumentów, które ktoś Ci udostępnił.</p>
+        {% endfor %}
+    </div>
+
+    <!-- DODANA SEKCJA STOPKI -->
+    <footer class="site-footer">
+        <p>&copy; {% now "Y" %} DocsTogether. Wszelkie prawa zastrzeżone.</p>
+    </footer>
+    <!-- KONIEC SEKCJI STOPKI -->
+</div>
 {% endblock %}
 
 {% block domready %}
-const csrfToken = '{{ csrf_token }}';
-$(".invite-btn").on("click", function() {
-    const btn = $(this);
-    const docId = btn.data("doc-id");
-    const linkInput = btn.siblings(".invite-link");
+const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-    $.get(`/documents/${docId}/invite/`, function(data) {
-        linkInput.val(data.invite_link);
-    }).fail(function() {
-        alert("Błąd podczas generowania linku.");
+// --- Invite button logic ---
+document.querySelectorAll(".invite-btn").forEach(button => {
+    button.addEventListener("click", function() {
+        const docId = this.dataset.docId;
+        const linkInput = this.nextElementSibling;
+
+        fetch(`/documents/${docId}/invite/`)
+            .then(response => response.json())
+            .then(data => {
+                linkInput.value = data.invite_link;
+                linkInput.style.display = 'block'; // Pokaż pole po wygenerowaniu
+                linkInput.select();
+                document.execCommand('copy'); // Skopiuj do schowka
+                alert('Link skopiowany do schowka!');
+            })
+            .catch(() => {
+                alert("Błąd podczas generowania linku.");
+            });
     });
 });
 
-document.getElementById("importForm").addEventListener("submit", async function(e){
+
+// --- File upload logic ---
+const importForm = document.getElementById("importForm");
+const fileUploadInput = document.getElementById("file-upload");
+
+fileUploadInput.addEventListener("change", function() {
+    if (this.files.length > 0) {
+        importForm.dispatchEvent(new Event('submit', { cancelable: true }));
+    }
+});
+
+importForm.addEventListener("submit", async function(e){
     e.preventDefault();
     const formData = new FormData(this);
 
-    const res = await fetch("{% url 'documents:import_document' %}", {
-        method: "POST",
-        body: formData,
-        headers: {
-            'X-CSRFToken': csrfToken
-        },
-        credentials: 'same-origin'
-    });
-
-    const data = await res.json();
-    console.log(data);
-    if (data.id) {
-        window.location.href = `/documents/${data.id}`;
-    } else {
-        alert(data.error || "Błąd podczas importu");
+    // Sprawdzenie, czy plik został wybrany
+    if (!formData.has('file') || !formData.get('file').name) {
+        // Nie rób nic, jeśli żaden plik nie został wybrany (np. anulowano okno dialogowe)
+        return;
     }
-})
+
+    try {
+        const res = await fetch("{% url 'documents:import_document' %}", {
+            method: "POST",
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        });
+
+        const data = await res.json();
+        if (data.id) {
+            window.location.href = `/documents/${data.id}`;
+        } else {
+            alert(data.error || "Błąd podczas importu");
+        }
+    } catch (error) {
+        console.error("Fetch error:", error);
+        alert("Wystąpił błąd sieciowy podczas importu.");
+    }
+});
 {% endblock %}

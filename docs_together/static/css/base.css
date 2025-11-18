@@ -8,23 +8,66 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 40px;
+  padding: 0 20px; 
   height: 60px;
   background-color: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
+  width: 100%;
 }
 
 #header .logo {
   font-size: 22px;
   font-weight: 600;
-  color: #0c66e4;
+  color: #0d6efd;
   text-decoration: none;
 }
 
+/* --- DODANE STYLE DLA PRZYCISKÓW W NAGŁÓWKU --- */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem; /* Odstęp między "Witaj" a przyciskiem */
+}
+
+.header-actions span {
+    color: #6c757d;
+    font-weight: 500;
+}
+
 #content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   padding-bottom: 50px;
+}
+
+/* --- DODANE OGÓLNE STYLE PRZYCISKÓW (dla spójności) --- */
+.btn {
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    color: #fff;
+}
+.btn-primary:hover {
+    background-color: #0b5ed7;
+}
+
+.btn-secondary-outline {
+    background-color: transparent;
+    color: #6c757d;
+    border-color: #dee2e6;
+}
+.btn-secondary-outline:hover {
+    background-color: #f8f9fa;
+    border-color: #c8cdd3;
 }
