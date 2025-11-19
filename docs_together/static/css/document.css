@@ -1,3 +1,7 @@
+.is-selecting .page {
+    pointer-events: none;
+}
+
 /* ================================== */
 /*          STYLE GLOBALNE            */
 /* ================================== */
@@ -141,7 +145,6 @@ body {
   border-radius: 10px;
   box-shadow: 0 25px 50px rgba(7, 20, 35, 0.2);
   box-sizing: border-box;
-  margin-right: 380px;
 }
 
 .container .menu-bar {
@@ -300,25 +303,24 @@ input[type="color"]::-moz-color-swatch { border-radius: 15px; box-shadow: 0 0 0 
 
 .editor-chat-wrapper {
   display: flex;
-  flex-direction: row;
   align-items: flex-start;
   gap: 20px;
   width: 95%;
   max-width: 1600px;
-  margin-top: 20px;
+  margin: 20px auto 0;
 }
 
 .right-sidebar {
-    position: fixed;
-    top: 163px;
-    right: 230px;
-    width: 320px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    z-index: 9999;
+  width: 320px;
+  flex-shrink: 0;
+  position: -webkit-sticky;
+  position: sticky;
+  top: 20px;
+  height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
-
 
 /* ================================== */
 /*        MODYFIKACJE CZATU           */
@@ -326,44 +328,69 @@ input[type="color"]::-moz-color-swatch { border-radius: 15px; box-shadow: 0 0 0 
 
 #chat {
   background: #ffffff;
-    border-radius: 10px;
-    box-shadow: 0 10px 25px rgba(7,20,35,0.15);
-    display: flex;
-    flex-direction: column;
-    height: 55vh;
-    overflow: hidden;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(7, 20, 35, 0.15);
+  display: flex;
+  flex-direction: column;
+  height: 95vh;
+  overflow: hidden;
 }
 
 #chatBox {
   flex-grow: 1;
-    padding: 15px;
-    overflow-y: auto;
+  padding: 15px;
+  overflow-y: auto;
 }
 
-#chatBox p {
-    margin: 0 0 12px 0;
-    font-size: 14px;
-    line-height: 1.5;
-    word-wrap: break-word;
-    padding: 5px 10px;
-    border-radius: 12px;
-    max-width: 80%;
+#chatBox p.self,
+#chatBox p.other {
+  font-size: 14px;
+  line-height: 1.5;
+  word-wrap: break-word;
+  max-width: 85%;
+  padding: 8px 14px;
+  margin: 0;
+  border-radius: 18px;
 }
-
 
 #chatBox p.other {
-    background-color: #f0f2f5;
-    text-align: left;
-    margin-right: auto;
+  background-color: #f0f2f5;
+  color: #333;
+  text-align: left;
+  width: fit-content;
+  border-bottom-left-radius: 4px;
 }
-
 
 #chatBox p.self {
-    background-color: #338cf4;
-    color: white;
-    text-align: right;
-    margin-left: auto;
+  background-color: #338cf4;
+  color: white;
+  text-align: left;
+  width: fit-content;
+  margin-left: auto;
+  border-bottom-right-radius: 4px;
 }
+
+#chatBox p.chat-timestamp {
+    background: none !important;
+    color: #999;
+    font-size: 11px;
+    line-height: 1.2;
+    padding: 0 14px;
+    margin: 15px 0 4px 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+p.chat-timestamp:has(+ p.self) {
+    text-align: right;
+}
+
+p.chat-timestamp:has(+ p.other) {
+    text-align: left;
+}
+
+
 /* ================================== */
 /*         STYLE DLA PANELU AI        */
 /* ================================== */
@@ -719,4 +746,42 @@ input[type="color"]::-moz-color-swatch { border-radius: 15px; box-shadow: 0 0 0 
   font-size: 14px;
   color: #222;
   line-height: 1.45;
+}
+
+.right-sidebar {
+    transition: transform 0.3s ease, width 0.3s ease;
+}
+
+.editor-chat-wrapper.sidebar-hidden .right-sidebar {
+    width: 0;
+    overflow: hidden;
+    padding: 0;
+    transform: translateX(100%);
+}
+
+.editor-chat-wrapper.sidebar-hidden {
+    gap: 0;
+}
+
+@media (max-width: 1200px) {
+    .right-sidebar {
+        position: fixed;
+        top: calc(100vh - 40px);
+        right: 0;
+        height: 100vh;
+        z-index: 1000;
+        background-color: #f0f2f5;
+        box-shadow: -10px 0 20px rgba(0,0,0,0.1);
+
+        transform: translateX(100%);
+        transition: transform 0.3s ease-in-out;
+    }
+
+    .editor-chat-wrapper.sidebar-visible .right-sidebar {
+        transform: translateX(0);
+    }
+
+    .container {
+        width: 100%;
+    }
 }
