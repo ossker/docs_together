@@ -3,6 +3,8 @@
 <html>
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     <title>
         {% block title %}
             DocsTogether
@@ -18,6 +20,15 @@
     {% block header %}
     <header id="header">
         <a class="logo" href="/documents">DocsTogether</a>
+        
+        <div class="header-actions">
+            {% if user.is_authenticated %}
+                <span>Witaj, {{ user.first_name|default:user.get_username }}</span>
+                <a href="{% url 'accounts:logout' %}" class="btn btn-secondary-outline">Wyloguj się</a>
+            {% else %}
+                <a href="{% url 'accounts:login' %}" class="btn btn-primary">Zaloguj się</a>
+            {% endif %}
+        </div>
     </header>
     {% endblock header %}
 
