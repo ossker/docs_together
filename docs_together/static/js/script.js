@@ -888,6 +888,12 @@ toolbarButtons.forEach((btn) => {
           }
           break;
         }
+        case "ai-improve-style": {
+          if (window.requestAiImproveStyle) {
+            window.requestAiImproveStyle();
+          }
+          break;
+        }
 
 
         default:

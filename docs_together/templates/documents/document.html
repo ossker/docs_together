@@ -216,6 +216,11 @@
                     <span class="ecm-label">Generuj tekst (AI)</span>
                     <span class="ecm-shortcut"></span>
                 </button>
+                <button class="ecm-item" data-action="ai-improve-style">
+                    <span class="ecm-label">Popraw styl (AI)</span>
+                    <span class="ecm-shortcut"></span>
+                </button>
+
 
 
             </div>
@@ -250,9 +255,17 @@
             <div id="ai-tools">
                 <div class="ai-header">
                     <h3>Asystent AI</h3>
-                    <button id="ai-copy-btn" class="ai-copy-btn" title="Kopiuj">
-                        <i class="fa-solid fa-copy"></i>
-                    </button>
+                    <div class="ai-buttons">
+
+                        <button id="ai-style-preview-btn" class="ai-copy-btn" style="display: none;"
+                                title="Pokaż poprawiony dokument (AI)">
+                            <i class="fa-solid fa-file-lines"></i>
+                        </button>
+
+                        <button id="ai-copy-btn" class="ai-copy-btn" title="Kopiuj">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div id="ai-status" class="ai-status"></div>
@@ -264,6 +277,22 @@
 
 </div>
 
+<!-- ======= POPUP: PODGLĄD POPRAWIONEGO DOKUMENTU (AI) ======= -->
+<div id="ai-style-modal-overlay" class="ai-style-modal-overlay" style="display: none;">
+    <div class="ai-style-modal">
+        <div class="ai-style-modal-header">
+            <h3>Sugestie językowe i stylistyczne (AI)</h3>
+            <button id="ai-style-modal-close" class="ai-style-modal-close" title="Zamknij">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div id="ai-style-modal-body" class="ai-style-modal-body">
+            <p class="ai-style-modal-empty">
+                Brak wygenerowanych sugestii – użyj najpierw „Popraw styl (AI)”.
+            </p>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 
@@ -304,13 +333,9 @@
     }
 
     window.getDocumentContent = function() {
-    const pages = writingArea.querySelectorAll(".page");
-    let content = "";
-    pages.forEach(page => {
-        content += page.innerHTML;
-    });
-    return content;
+    return writingArea.innerHTML;
     };
+
 
 
     function appendMessage(user, text) {
@@ -390,6 +415,75 @@
 
     const aiGenerateUrl = window.location.pathname.replace(/\/$/, '') + `/ai/generate`;
 
+    const aiImproveUrl = window.location.pathname.replace(/\/$/, '') + `/ai/improve_style`;
+
+    const aiStylePreviewBtn = document.getElementById("ai-style-preview-btn");
+    const aiStyleModalOverlay = document.getElementById("ai-style-modal-overlay");
+    const aiStyleModalBody = document.getElementById("ai-style-modal-body");
+    const aiStyleModalClose = document.getElementById("ai-style-modal-close");
+
+    let aiStyleLastHtml = "";
+
+    function openAiStyleModal() {
+        if (!aiStyleModalOverlay || !aiStyleModalBody) return;
+
+        if (!aiStyleLastHtml) {
+            aiStyleModalBody.innerHTML = `
+                <p class="ai-style-modal-empty">
+                    Brak wygenerowanych sugestii – użyj najpierw „Popraw styl (AI)”.
+                </p>
+            `;
+        } else {
+            aiStyleModalBody.innerHTML = aiStyleLastHtml;
+        }
+
+        aiStyleModalOverlay.style.display = "flex";
+    }
+
+    function closeAiStyleModal() {
+        if (!aiStyleModalOverlay) return;
+        aiStyleModalOverlay.style.display = "none";
+    }
+
+    window.requestAiImproveStyle = function () {
+        if (!writingArea || typeof window.getDocumentContent !== "function") return;
+
+        const fullHtml = window.getDocumentContent();
+        if (!fullHtml) return;
+
+        if (aiStatusEl) aiStatusEl.textContent = "Poprawiam styl dokumentu...";
+
+        fetch(aiImproveUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken,
+            },
+            body: JSON.stringify({ content: fullHtml }),
+        })
+        .then((r) => r.json())
+        .then((data) => {
+            if (!data.ok) {
+                if (aiStatusEl) aiStatusEl.textContent = data.error || "Błąd poprawy stylu";
+                return;
+            }
+
+            aiStyleLastHtml = data.styled_html || "";
+            if (aiStylePreviewBtn) {
+                aiStylePreviewBtn.style.display = "flex";
+            }
+
+            if (aiStatusEl) aiStatusEl.textContent = "Gotowe – podgląd dostępny w panelu AI";
+
+            openAiStyleModal();
+        })
+        .catch(() => {
+            if (aiStatusEl) aiStatusEl.textContent = "Błąd sieci podczas poprawy stylu";
+        });
+    };
+
+
+
     window.requestAiGenerate = function(textWithMarker) {
         if (!textWithMarker) return;
 
@@ -428,6 +522,26 @@
                 navigator.clipboard.writeText(text);
             });
         }
+        if (aiStylePreviewBtn) {
+            aiStylePreviewBtn.addEventListener("click", () => {
+                openAiStyleModal();
+            });
+        }
+
+        if (aiStyleModalClose) {
+            aiStyleModalClose.addEventListener("click", () => {
+                closeAiStyleModal();
+            });
+        }
+
+        if (aiStyleModalOverlay) {
+            aiStyleModalOverlay.addEventListener("click", (e) => {
+                if (e.target === aiStyleModalOverlay) {
+                    closeAiStyleModal();
+                }
+            });
+        }
+
 
     titleEl.addEventListener("input", () => {
         const newTitle = titleEl.innerText;
