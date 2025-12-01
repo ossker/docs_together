@@ -52,9 +52,9 @@
             <div class="menu-item">
                 Edytuj
                 <div class="submenu">
-                    <div class="submenu-item">Cofnij</div>
-                    <div class="submenu-item">Kopiuj</div>
-                    <div class="submenu-item">Wklej</div>
+                    <a class="submenu-item">Cofnij</a>
+                    <a class="submenu-item" id="copy-text">Kopiuj</a>
+                    <a class="submenu-item" id="past-text">Wklej</a>
                 </div>
             </div>
 
@@ -646,6 +646,44 @@
             document.documentElement.requestFullscreen();
         } else {
             document.exitFullscreen();
+        }
+    });
+
+    document.getElementById("copy-text").addEventListener("click", function() {
+        document.execCommand("copy");
+    });
+
+    document.getElementById("past-text").addEventListener("click", function() {
+        if (navigator.clipboard && navigator.clipboard.read) {
+            navigator.clipboard.read().then((items) => {
+                for (const item of items) {
+                    if (item.types.includes("text/html")) {
+                        item.getType("text/html").then((blob) => {
+                            blob.text().then((html) => {
+                                document.execCommand("insertHTML", false, html);
+                            });
+                        });
+                        return;
+                    }
+                }
+                for (const item of items) {
+                    if (item.types.includes("text/plain")) {
+                        item.getType("text/plain").then((blob) => {
+                            blob.text().then((text) => {
+                                document.execCommand("insertText", false, text);
+                            });
+                        });
+                        return;
+                    }
+                }
+            });
+        } else if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText().then((text) => {
+                if (!text) return;
+                document.execCommand("insertText", false, text);
+            });
+        } else {
+            document.execCommand("paste");
         }
     });
 
