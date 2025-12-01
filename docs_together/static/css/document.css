@@ -108,6 +108,8 @@ body {
   cursor: pointer;
   color: #020929;
   transition: background 0.12s ease;
+  display: block;
+  text-decoration: none;
 }
 
 .submenu-item:hover {
@@ -284,15 +286,25 @@ input[type="color"]::-moz-color-swatch { border-radius: 15px; box-shadow: 0 0 0 
 /* ================================== */
 
 @media print {
-  body { background-color: white; }
-  .menu-bar, .container, #chat, .editor-chat-wrapper, .actions { display: none; }
-  #text-input { display: block; padding: 0; background-color: transparent; }
-  .page {
-    width: 100%; height: auto; min-height: 29.7cm;
-    margin: 0; padding: 1.5cm; box-shadow: none; overflow: visible;
-    border-bottom: 1px dashed #ccc;
+  body {
+    visibility: hidden;
   }
-  .page:last-child { border-bottom: none; }
+  #text-input {
+    visibility: visible;
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0;
+    padding: 0;
+  }
+  .page {
+    width: 100%;
+    height: 100vh;
+    margin: 0;
+    padding: 30px 0;
+    max-width: none;
+    box-shadow: none;
+  }
 }
 
 

@@ -26,33 +26,44 @@
             <div class="menu-item">
                 Plik
                 <div class="submenu">
-                    <div class="submenu-item">Nowy</div>
-                    <div class="submenu-item">Otwórz</div>
-                    <div class="submenu-item">Usuń</div>
-                    <div class="submenu-item">Zapisz</div>
-                    <div class="submenu-item">Zamknij</div>
-                    <div class="submenu-item">Historia zmian</div>
-                    <div class="submenu-item">Udostępnij</div>
-                    <div class="submenu-item">Pobierz</div>
-                    <div class="submenu-item">Drukuj</div>
+                    <a class="submenu-item" href="/documents/create">Nowy</a>
+                    <a class="submenu-item" id="open-document">
+                        <form id="open-document-form" method="post" action="{% url 'documents:import_document' %}" enctype="multipart/form-data">
+                            Otwórz
+                            {% csrf_token %}
+                            <input id="file-upload" type="file" name="file" accept=".html" style="display:none;">
+                        </form>
+                    </a>
+                    <a class="submenu-item" id="delete-document">
+                        <form id="delete-document-form" method="post" action="{% url 'documents:delete_document' document.id %}">
+                            Usuń
+                            {% csrf_token %}
+                        </form>
+                    </a>
+                    <a class="submenu-item" id="save-document">Zapisz</a>
+                    <a class="submenu-item" href="/documents">Zamknij</a>
+                    <a class="submenu-item" href="/documents/{{ document.id }}/changelogs">Historia zmian</a>
+                    <a class="submenu-item" id="share-document">Udostępnij</a>
+                    <a class="submenu-item" href="/documents/{{ document.id }}/export">Pobierz</a>
+                    <a class="submenu-item" onclick="window.print()">Drukuj</a>
                 </div>
             </div>
 
             <div class="menu-item">
                 Edytuj
                 <div class="submenu">
-                    <div class="submenu-item">Cofnij</div>
-                    <div class="submenu-item">Kopiuj</div>
-                    <div class="submenu-item">Wklej</div>
+                    <a class="submenu-item">Cofnij</a>
+                    <a class="submenu-item" id="copy-text">Kopiuj</a>
+                    <a class="submenu-item" id="past-text">Wklej</a>
                 </div>
             </div>
 
             <div class="menu-item">
                 Widok
                 <div class="submenu">
-                    <div class="submenu-item">Powiększ</div>
-                    <div class="submenu-item">Pomniejsz</div>
-                    <div class="submenu-item">Tryb pełnoekranowy</div>
+                    <div class="submenu-item" id="zoom-in">Powiększ</div>
+                    <div class="submenu-item" id="zoom-out">Pomniejsz</div>
+                    <div class="submenu-item" id="fullscreen">Tryb pełnoekranowy</div>
                 </div>
             </div>
 
@@ -590,5 +601,107 @@
         }
     });
 
+    document.getElementById("share-document").addEventListener("click", function() {
+        fetch(`/documents/{{ document.id }}/invite/`)
+            .then(response => response.json())
+            .then(data => {
+                navigator.clipboard.writeText(data.invite_link);
+                alert('Link skopiowany do schowka!');
+            })
+            .catch(() => {
+                alert("Błąd podczas generowania linku.");
+            });
+    });
+
+    document.getElementById("save-document").addEventListener("click", function() {
+        clearTimeout(saveTimeout);
+        clearTimeout(titleSaveTimeout);
+
+        const title = titleEl.innerText;
+        const content = writingArea.innerHTML;
+        saveDocument(title, content);
+        alert("Dokument zapisano pomyślnie!");
+    });
+
+    document.getElementById("delete-document").addEventListener("click", function() {
+        if (confirm("Na pewno chcesz usunąć dokument?")) {
+            document.getElementById("delete-document-form").submit();
+        }
+    });
+
+    const fileUploadInput = document.getElementById("file-upload");
+
+    document.getElementById("open-document").addEventListener("click", function() {
+        fileUploadInput.click();
+    });
+
+    fileUploadInput.addEventListener("change", function() {
+        if (this.files.length > 0) {
+            document.getElementById("open-document-form").submit();
+        }
+    });
+
+    document.getElementById("fullscreen").addEventListener("click", function() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            document.exitFullscreen();
+        }
+    });
+
+    document.getElementById("copy-text").addEventListener("click", function() {
+        document.execCommand("copy");
+    });
+
+    document.getElementById("past-text").addEventListener("click", function() {
+        if (navigator.clipboard && navigator.clipboard.read) {
+            navigator.clipboard.read().then((items) => {
+                for (const item of items) {
+                    if (item.types.includes("text/html")) {
+                        item.getType("text/html").then((blob) => {
+                            blob.text().then((html) => {
+                                document.execCommand("insertHTML", false, html);
+                            });
+                        });
+                        return;
+                    }
+                }
+                for (const item of items) {
+                    if (item.types.includes("text/plain")) {
+                        item.getType("text/plain").then((blob) => {
+                            blob.text().then((text) => {
+                                document.execCommand("insertText", false, text);
+                            });
+                        });
+                        return;
+                    }
+                }
+            });
+        } else if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText().then((text) => {
+                if (!text) return;
+                document.execCommand("insertText", false, text);
+            });
+        } else {
+            document.execCommand("paste");
+        }
+    });
+
+    let zoom = 1.0;
+    const x = document.getElementById("text-input");
+
+    document.getElementById("zoom-in").addEventListener("click", function() {
+        if (zoom < 1.35) {
+            zoom += 0.05;
+            x.style.zoom = zoom;
+        }
+    });
+
+    document.getElementById("zoom-out").addEventListener("click", function() {
+        if (zoom > 0.5) {
+            zoom -= 0.05;
+            x.style.zoom = zoom;
+        }
+    });
 
 {% endblock %}
