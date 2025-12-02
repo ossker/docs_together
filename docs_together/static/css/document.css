@@ -73,6 +73,7 @@ body {
   background-color: #ffffff;
   border-radius: 10px 10px 0 0;
   box-sizing: border-box;
+  min-width: 90%;
 }
 
 .menu-item {

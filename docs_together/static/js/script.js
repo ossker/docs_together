@@ -92,31 +92,36 @@ const createNewPage = (initialContent = "") => {
 };
 
 // ======= SPRAWDZANIE PRZEPŁYWU TEKSTU =======
-const checkPageOverflow = (e) => {
-    let triggerPage;
-    if (e && e.target && e.target.closest) {
-        triggerPage = e.target.closest(".page");
-    } else if (document.activeElement) {
-        triggerPage = document.activeElement.closest(".page");
-    }
-    if (!triggerPage) triggerPage = writingArea.querySelector(".page");
-    if (!triggerPage) return;
+const checkPageOverflow = () => {
+    if (!writingArea) return;
 
     let allPages = Array.from(writingArea.querySelectorAll(".page"));
-    let startIndex = allPages.indexOf(triggerPage);
-    if (startIndex === -1) startIndex = 0;
+    let i = 0;
+    
+    const GLOBAL_MAX_PAGES = 200; 
 
-    for (let i = startIndex; i < allPages.length; i++) {
+    while (i < allPages.length) {
+        if (allPages.length > GLOBAL_MAX_PAGES) {
+            console.error("Zatrzymano podział stron: Przekroczono limit bezpieczenstwa (" + GLOBAL_MAX_PAGES + " stron).");
+            break; 
+        }
+
         const currentPage = allPages[i];
-        
-        let loopSafetyCounter = 0; 
-        const MAX_LOOPS = 100; 
+        let loopSafety = 0;
+        const MAX_LOOPS_PER_PAGE = 50;
 
         while (currentPage.scrollHeight > currentPage.clientHeight) {
-            
-            loopSafetyCounter++;
-            if (loopSafetyCounter > MAX_LOOPS) {
+            loopSafety++;
+            if (loopSafety > MAX_LOOPS_PER_PAGE) {
+                console.warn("Przerwano pętlę na stronie " + (i + 1) + " - element zbyt duży lub niepodzielny.");
                 break;
+            }
+
+            if (currentPage.lastChild && 
+                currentPage.lastChild.nodeType === Node.TEXT_NODE && 
+                currentPage.lastChild.nodeValue.trim() === '') {
+                currentPage.lastChild.remove();
+                continue;
             }
 
             if (currentPage.childNodes.length === 0) break;
@@ -128,21 +133,16 @@ const checkPageOverflow = (e) => {
             }
 
             const lastChild = currentPage.lastChild;
+            const moved = moveDeepContent(lastChild, nextPage);
 
-            if (currentPage.childNodes.length > 1) {
+            if (!moved) {
                 nextPage.prepend(lastChild);
-            }
-            else {
-                const moved = moveDeepContent(lastChild, nextPage);
                 
-                if (!moved) {
-                    break;
-                }
+                break; 
             }
         }
-        
-        if (currentPage.childNodes.length === 0 && allPages.length > 1) {
-        }
+        i++;
+        allPages = Array.from(writingArea.querySelectorAll(".page"));
     }
 };
 
@@ -258,7 +258,6 @@ const handleSelectAll = (e) => {
     }
 };
 
-
 // ======= OBSŁUGA ZAZNACZANIA MYSZKĄ NA WIELU STRONACH =======
 const enableFinalCrossPageSelection = () => {
     let isSelecting = false;
@@ -315,55 +314,146 @@ const updateToolbar = () => {
     });
 };
 
+// ======= NAPRAWA ZAGNIEŻDŻONYCH STRON  =======
+const flattenNestedPages = () => {
+    const container = document.getElementById('text-input');
+    const allPages = Array.from(container.querySelectorAll('.page'));
+    
+    if (allPages.length === 0) return;
+
+    const fragment = document.createDocumentFragment();
+
+    allPages.forEach(page => {
+        const wrapper = page.closest('ins, del');
+        
+        if (wrapper) {
+            const computedStyle = window.getComputedStyle(wrapper);
+            const bgColor = wrapper.style.backgroundColor || computedStyle.backgroundColor;
+
+            if (bgColor && bgColor !== 'transparent' && bgColor !== 'rgba(0, 0, 0, 0)') {
+                page.style.backgroundColor = bgColor;
+                
+                if (wrapper.tagName === 'DEL') {
+
+                     page.style.border = "2px solid #ffcccc";
+                }
+                
+                if (wrapper.tagName === 'INS') {
+                    page.style.border = "2px solid #ccffcc";
+                }
+            }
+        }
+
+        page.style.display = 'block'; 
+        
+        fragment.appendChild(page);
+    });
+    container.innerHTML = '';
+    
+    container.appendChild(fragment);
+
+    const reorderedPages = container.querySelectorAll('.page');
+    reorderedPages.forEach(page => {
+        const hasContent = page.innerText.trim().length > 0;
+        const hasMedia = page.querySelectorAll('img, video, table, iframe').length > 0;
+        
+        if (!hasContent && !hasMedia && reorderedPages.length > 1) {
+            page.remove();
+        }
+    });
+};
+
 // ======= INICJALIZACJA =======
 const initializer = (initialHtmlContent) => {
-    highlighter(alignButtons, true);
-    highlighter(spacingButtons, true);
-    highlighter(formatButtons, false);
-    highlighter(scriptButtons, true);
+    if(alignButtons.length > 0) highlighter(alignButtons, true);
+    if(spacingButtons.length > 0) highlighter(spacingButtons, true);
+    if(formatButtons.length > 0) highlighter(formatButtons, false);
+    if(scriptButtons.length > 0) highlighter(scriptButtons, true);
 
     const debouncedCheckPageOverflow = debounce(checkPageOverflow, 200);
 
-    fontList.forEach((value) => {
-        let option = document.createElement("option");
-        option.value = value;
-        option.textContent = value;
-        fontName.appendChild(option);
-    });
+    if (fontName && fontName.options.length === 0) {
+        fontList.forEach((value) => {
+            let option = document.createElement("option");
+            option.value = value;
+            option.textContent = value;
+            fontName.appendChild(option);
+        });
+    }
 
-    for (let i = 1; i <= 7; i++) {
-        let option = document.createElement("option");
-        option.value = i;
-        option.textContent = i;
-        fontSizeRef.appendChild(option);
+    if (fontSizeRef && fontSizeRef.options.length === 0) {
+        for (let i = 1; i <= 7; i++) {
+            let option = document.createElement("option");
+            option.value = i;
+            option.textContent = i;
+            fontSizeRef.appendChild(option);
+        }
+        fontSizeRef.value = 3;
     }
-    fontSizeRef.value = 3;
-    writingArea.innerHTML = "";
-    if (initialHtmlContent && initialHtmlContent.trim() !== "") {
-      const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = initialHtmlContent;
-      if (tempDiv.querySelector(".page")) {
+
+    if (initialHtmlContent && typeof initialHtmlContent === 'string' && initialHtmlContent.trim() !== "") {
         writingArea.innerHTML = initialHtmlContent;
-      } else {
-        createNewPage(initialHtmlContent);
-      }
-    } else {
-      createNewPage();
+    } 
+    
+    flattenNestedPages();
+
+    if (writingArea.querySelectorAll(".page").length === 0) {
+        if (writingArea.innerText.trim().length > 0) {
+             const text = writingArea.innerHTML;
+             writingArea.innerHTML = "";
+             createNewPage(text);
+        } else {
+             createNewPage();
+        }
     }
-    writingArea.querySelectorAll(".page").forEach(observePage);
+    
+    const allPages = writingArea.querySelectorAll(".page");
+    allPages.forEach(observePage);
+
     writingArea.addEventListener("input", debouncedCheckPageOverflow);
     writingArea.addEventListener("paste", handlePaste);
     writingArea.addEventListener("keydown", handleSelectAll, true);
     writingArea.addEventListener("keydown", handleMultiPageInput, true);
     enableFinalCrossPageSelection();
+    
     writingArea.addEventListener('dragstart', (e) => {
       e.preventDefault();
     });
     writingArea.addEventListener('mouseup', updateToolbar); 
     writingArea.addEventListener('keyup', updateToolbar); 
-    const firstPage = writingArea.querySelector(".page");
-    if (firstPage) firstPage.focus();
+    
     updateToolbar(); 
+};
+
+
+const initializer2 = (initialHtmlContent) => {
+    if (!writingArea) return;
+
+    writingArea.innerHTML = "";
+    if (initialHtmlContent && typeof initialHtmlContent === 'string' && initialHtmlContent.trim() !== "") {
+        writingArea.innerHTML = initialHtmlContent;
+    } else {
+        createNewPage();
+    }
+
+    flattenNestedPages();
+
+    if (writingArea.querySelectorAll(".page").length === 0) {
+        const text = writingArea.innerHTML;
+        writingArea.innerHTML = "";
+        createNewPage(text);
+    }
+
+    const allPages = writingArea.querySelectorAll(".page");
+    allPages.forEach(observePage);
+
+    const debouncedCheck = debounce(checkPageOverflow, 200);
+    writingArea.addEventListener("input", debouncedCheck);
+    
+    setTimeout(() => {
+        checkPageOverflow();
+    }, 200);
+
 };
 
 // ======= MODYFIKACJA TEKSTU =======
