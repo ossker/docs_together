@@ -77,18 +77,40 @@ const createNewPage = (initialContent = "") => {
 };
 
 // ======= SPRAWDZANIE PRZEPŁYWU TEKSTU =======
-const checkPageOverflow = (e) => {
-    const triggerPage = e.target.closest(".page");
-    if (!triggerPage) return;
+const checkPageOverflow = () => {
+    if (!writingArea) return;
 
     let allPages = Array.from(writingArea.querySelectorAll(".page"));
-    let startIndex = allPages.indexOf(triggerPage);
-    if (startIndex === -1) return;
+    let i = 0;
+    
+    const GLOBAL_MAX_PAGES = 200; 
 
-    for (let i = startIndex; i < allPages.length; i++) {
+    while (i < allPages.length) {
+        if (allPages.length > GLOBAL_MAX_PAGES) {
+            console.error("Zatrzymano podział stron: Przekroczono limit bezpieczenstwa (" + GLOBAL_MAX_PAGES + " stron).");
+            break; 
+        }
+
         const currentPage = allPages[i];
-        
+        let loopSafety = 0;
+        const MAX_LOOPS_PER_PAGE = 50;
+
         while (currentPage.scrollHeight > currentPage.clientHeight) {
+            loopSafety++;
+            if (loopSafety > MAX_LOOPS_PER_PAGE) {
+                console.warn("Przerwano pętlę na stronie " + (i + 1) + " - element zbyt duży lub niepodzielny.");
+                break;
+            }
+
+            if (currentPage.lastChild && 
+                currentPage.lastChild.nodeType === Node.TEXT_NODE && 
+                currentPage.lastChild.nodeValue.trim() === '') {
+                currentPage.lastChild.remove();
+                continue;
+            }
+
+            if (currentPage.childNodes.length === 0) break;
+
             let nextPage = allPages[i + 1];
 
             if (!nextPage) {
@@ -96,45 +118,22 @@ const checkPageOverflow = (e) => {
                 allPages.push(nextPage);
             }
 
-            const fragment = document.createDocumentFragment();
-            
-            while (currentPage.scrollHeight > currentPage.clientHeight && currentPage.lastChild) {
-                fragment.insertBefore(currentPage.lastChild, fragment.firstChild);
-            }
+            const lastChild = currentPage.lastChild;
+            const moved = moveDeepContent(lastChild, nextPage);
 
-            if (fragment.childNodes.length > 0) {
-                nextPage.insertBefore(fragment, nextPage.firstChild);
-            } else {
-                break;
+            if (!moved) {
+                nextPage.prepend(lastChild);
+                
+                break; 
             }
         }
+        i++;
+        allPages = Array.from(writingArea.querySelectorAll(".page"));
     }
 };
 
 
-// ======= OBSŁUGA ZAZNACZANIA CAŁOŚCI (CTRL+A) =======
-const handleSelectAll = (e) => {
-    if (e.key.toLowerCase() === 'a' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
 
-        const selection = window.getSelection();
-        if (!selection) return;
-
-        const firstPage = writingArea.querySelector(".page:first-child");
-        const lastPage = writingArea.querySelector(".page:last-child");
-
-        if (!firstPage || !lastPage) return;
-
-        const range = document.createRange();
-
-        range.setStart(firstPage, 0);
-
-        range.setEnd(lastPage, lastPage.childNodes.length);
-
-        selection.removeAllRanges();
-        selection.addRange(range);
-    }
-};
 
 const handleMultiPageInput = (e) => {
     if (e.ctrlKey || e.altKey || e.metaKey) {
@@ -174,6 +173,23 @@ const handleMultiPageInput = (e) => {
             newPage.innerHTML = ''; 
             document.execCommand('insertText', false, e.key);
         }
+    }
+};
+
+// ======= OBSŁUGA ZAZNACZANIA CAŁOŚCI (CTRL+A) =======
+const handleSelectAll = (e) => {
+    if (e.key.toLowerCase() === 'a' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        const selection = window.getSelection();
+        if (!selection) return;
+        const firstPage = writingArea.querySelector(".page:first-child");
+        const lastPage = writingArea.querySelector(".page:last-child");
+        if (!firstPage || !lastPage) return;
+        const range = document.createRange();
+        range.setStart(firstPage, 0);
+        range.setEnd(lastPage, lastPage.childNodes.length);
+        selection.removeAllRanges();
+        selection.addRange(range);
     }
 };
 
@@ -243,60 +259,146 @@ const updateToolbar = () => {
     
 };
 
+// ======= NAPRAWA ZAGNIEŻDŻONYCH STRON  =======
+const flattenNestedPages = () => {
+    const container = document.getElementById('text-input');
+    const allPages = Array.from(container.querySelectorAll('.page'));
+    
+    if (allPages.length === 0) return;
+
+    const fragment = document.createDocumentFragment();
+
+    allPages.forEach(page => {
+        const wrapper = page.closest('ins, del');
+        
+        if (wrapper) {
+            const computedStyle = window.getComputedStyle(wrapper);
+            const bgColor = wrapper.style.backgroundColor || computedStyle.backgroundColor;
+
+            if (bgColor && bgColor !== 'transparent' && bgColor !== 'rgba(0, 0, 0, 0)') {
+                page.style.backgroundColor = bgColor;
+                
+                if (wrapper.tagName === 'DEL') {
+
+                     page.style.border = "2px solid #ffcccc";
+                }
+                
+                if (wrapper.tagName === 'INS') {
+                    page.style.border = "2px solid #ccffcc";
+                }
+            }
+        }
+
+        page.style.display = 'block'; 
+        
+        fragment.appendChild(page);
+    });
+    container.innerHTML = '';
+    
+    container.appendChild(fragment);
+
+    const reorderedPages = container.querySelectorAll('.page');
+    reorderedPages.forEach(page => {
+        const hasContent = page.innerText.trim().length > 0;
+        const hasMedia = page.querySelectorAll('img, video, table, iframe').length > 0;
+        
+        if (!hasContent && !hasMedia && reorderedPages.length > 1) {
+            page.remove();
+        }
+    });
+};
+
 // ======= INICJALIZACJA =======
 const initializer = (initialHtmlContent) => {
-    highlighter(alignButtons, true);
-    highlighter(spacingButtons, true);
-    highlighter(formatButtons, false);
-    highlighter(scriptButtons, true);
+    if(alignButtons.length > 0) highlighter(alignButtons, true);
+    if(spacingButtons.length > 0) highlighter(spacingButtons, true);
+    if(formatButtons.length > 0) highlighter(formatButtons, false);
+    if(scriptButtons.length > 0) highlighter(scriptButtons, true);
 
-    fontList.forEach((value) => {
-        let option = document.createElement("option");
-        option.value = value;
-        option.textContent = value;
-        fontName.appendChild(option);
-    });
+    const debouncedCheckPageOverflow = debounce(checkPageOverflow, 200);
 
-    for (let i = 1; i <= 7; i++) {
-        let option = document.createElement("option");
-        option.value = i;
-        option.textContent = i;
-        fontSizeRef.appendChild(option);
+    if (fontName && fontName.options.length === 0) {
+        fontList.forEach((value) => {
+            let option = document.createElement("option");
+            option.value = value;
+            option.textContent = value;
+            fontName.appendChild(option);
+        });
     }
-    fontSizeRef.value = 3;
 
-    writingArea.innerHTML = "";
+    if (fontSizeRef && fontSizeRef.options.length === 0) {
+        for (let i = 1; i <= 7; i++) {
+            let option = document.createElement("option");
+            option.value = i;
+            option.textContent = i;
+            fontSizeRef.appendChild(option);
+        }
+        fontSizeRef.value = 3;
+    }
 
-    if (initialHtmlContent && initialHtmlContent.trim() !== "") {
-      const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = initialHtmlContent;
-
-      if (tempDiv.querySelector(".page")) {
+    if (initialHtmlContent && typeof initialHtmlContent === 'string' && initialHtmlContent.trim() !== "") {
         writingArea.innerHTML = initialHtmlContent;
-      } else {
-        createNewPage(initialHtmlContent);
-      }
-    } else {
-      createNewPage();
+    } 
+    
+    flattenNestedPages();
+
+    if (writingArea.querySelectorAll(".page").length === 0) {
+        if (writingArea.innerText.trim().length > 0) {
+             const text = writingArea.innerHTML;
+             writingArea.innerHTML = "";
+             createNewPage(text);
+        } else {
+             createNewPage();
+        }
     }
+    
+    const allPages = writingArea.querySelectorAll(".page");
+    allPages.forEach(observePage);
 
-    writingArea.querySelectorAll(".page").forEach(observePage);
-
-    writingArea.addEventListener("input", checkPageOverflow);
+    writingArea.addEventListener("input", debouncedCheckPageOverflow);
     writingArea.addEventListener("paste", handlePaste);
     writingArea.addEventListener("keydown", handleSelectAll, true);
     writingArea.addEventListener("keydown", handleMultiPageInput, true);
     enableFinalCrossPageSelection();
-
-    writingArea.addEventListener('dragstart', (e) => e.preventDefault());
-
+    
+    writingArea.addEventListener('dragstart', (e) => {
+      e.preventDefault();
+    });
     writingArea.addEventListener('mouseup', updateToolbar); 
     writingArea.addEventListener('keyup', updateToolbar); 
-
-
-    const firstPage = writingArea.querySelector(".page");
-    if (firstPage) firstPage.focus();
+    
     updateToolbar(); 
+};
+
+
+const initializer2 = (initialHtmlContent) => {
+    if (!writingArea) return;
+
+    writingArea.innerHTML = "";
+    if (initialHtmlContent && typeof initialHtmlContent === 'string' && initialHtmlContent.trim() !== "") {
+        writingArea.innerHTML = initialHtmlContent;
+    } else {
+        createNewPage();
+    }
+
+    flattenNestedPages();
+
+    if (writingArea.querySelectorAll(".page").length === 0) {
+        const text = writingArea.innerHTML;
+        writingArea.innerHTML = "";
+        createNewPage(text);
+    }
+
+    const allPages = writingArea.querySelectorAll(".page");
+    allPages.forEach(observePage);
+
+    const debouncedCheck = debounce(checkPageOverflow, 200);
+    writingArea.addEventListener("input", debouncedCheck);
+    
+    setTimeout(() => {
+        checkPageOverflow();
+    }, 200);
+
 };
 
 // ======= MODYFIKACJA TEKSTU =======
