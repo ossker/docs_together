@@ -119,6 +119,18 @@ def view_document_changelogs(request, document_id):
     return render(request, "documents/changelogs.html", {"document": document, "changelogs": changelogs})
 
 
+def extract_content_from_pages(html_content):
+    if not html_content:
+        return ""
+    
+    soup = BeautifulSoup(html_content, "html.parser")
+    pages = soup.find_all(class_="page")
+    
+    if pages:
+        return "".join([page.decode_contents() for page in pages])
+    
+    return html_content
+
 @login_required
 @owner_or_collaborator_required
 def view_document_changelog(request, document_id, document_changelog_id):
@@ -130,12 +142,32 @@ def view_document_changelog(request, document_id, document_changelog_id):
 
     difference = None
     if previous_changelog:
-        dmp = diff_match_patch()
-        diffs = dmp.diff_main(previous_changelog.content, changelog.content)
-        dmp.diff_cleanupSemantic(diffs)
-        difference = dmp.diff_prettyHtml(diffs)
+        text1 = extract_content_from_pages(previous_changelog.content)
+        text2 = extract_content_from_pages(changelog.content)
 
-    return render(request, "documents/changelog.html", {"changelog": changelog, "difference": difference})
+        dmp = diff_match_patch()
+        
+        diffs = dmp.diff_main(text1, text2)
+        dmp.diff_cleanupSemantic(diffs)
+
+        html_output = []
+        for op, data in diffs:
+            if op == dmp.DIFF_INSERT:
+                html_output.append(f'<ins style="background:#e6ffe6;">{data}</ins>')
+            elif op == dmp.DIFF_DELETE:
+                html_output.append(f'<del style="background:#ffe6e6;">{data}</del>')
+            elif op == dmp.DIFF_EQUAL:
+                html_output.append(data)
+        
+        diff_html = "".join(html_output)
+
+        difference = f'<div class="page" contenteditable="true">{diff_html}</div>'
+
+    return render(request, "documents/changelog.html", {
+        "changelog": changelog, 
+        "difference": difference, 
+        "document_id": document_id
+    })
 
 
 @login_required
