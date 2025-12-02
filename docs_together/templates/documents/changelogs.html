@@ -1,16 +1,61 @@
-<h2>Historia zmian: {{ document.title }}</h2>
+{% extends "base.html" %}
+{% load static %}
 
-<ul>
-{% for log in changelogs %}
-    <li>
-        <strong>{{ log.date_edited|date:"Y-m-d H:i" }}</strong>
-        — edytował: {{ log.editor.email_address }}
+{% block title %}
+Historia zmian: {{ document.title }}
+{% endblock %}
 
-        <a href="/documents/{{ document.id }}/changelogs/{{ log.id}}">Podgląd</a>
-    </li>
-    {% with previous=log %}
-    {% endwith %}
-{% empty %}
-    <li>Brak historii zmian</li>
-{% endfor %}
-</ul>
+{% block extrahead %}
+    <link rel="stylesheet" href="{% static 'css/documents.css' %}"> 
+    <link rel="stylesheet" href="{% static 'css/changelogs.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+{% endblock %}
+
+{% block content %}
+<div class="changelog-wrapper">
+
+    <div class="changelog-header">
+        <div class="back-btn-wrapper">
+            <a href="/documents" class="btn btn-secondary-outline">
+                <i class="fa-solid fa-arrow-left"></i> Wróć
+            </a>
+        </div>
+        <h1>Historia zmian</h1>
+        <div class="doc-subtitle">{{ document.title }}</div>
+    </div>
+
+    <div class="changelog-list">
+        {% for log in changelogs %}
+            <div class="changelog-card">
+                <div class="card-left">
+                    <div class="icon-box">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                    </div>
+                    <div class="meta-info">
+                        <span class="meta-date">
+                            {{ log.date_edited|date:"d.m.Y" }}, godz. {{ log.date_edited|date:"H:i" }}
+                        </span>
+                        <span class="meta-editor">
+                            <i class="fa-solid fa-user-pen"></i> 
+                            Edytował: {{ log.editor.first_name }} {{ log.editor.last_name|default:log.editor.email_address }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="card-actions">
+                    <a href="/documents/{{ document.id }}/changelogs/{{ log.id}}" class="btn btn-primary">
+                        <i class="fa-regular fa-eye"></i> Podgląd
+                    </a>
+                </div>
+            </div>
+        {% empty %}
+            <div class="empty-state">
+                <i class="fa-solid fa-file-circle-question"></i>
+                <p>Brak zapisanej historii zmian dla tego dokumentu.</p>
+            </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}
