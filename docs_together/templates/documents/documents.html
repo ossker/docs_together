@@ -75,10 +75,17 @@ Dokumenty
     </div>
 
     <div class="pagination">
-        <button class="page-arrow" disabled>&lt;</button>
-        <span>strona 1 z 2</span>
-        <button class="page-arrow">&gt;</button>
+        {% if owned_documents.has_previous %}
+            <a class="page-arrow" href="?page={{ owned_documents.previous_page_number }}">&lt;</a>
+        {% endif %}
+
+        <span class="page-info">Strona {{ owned_documents.number }} z {{ owned_documents.paginator.num_pages }}</span>
+
+        {% if owned_documents.has_next %}
+            <a class="page-arrow" href="?page={{ owned_documents.next_page_number }}">&gt;</a>
+        {% endif %}
     </div>
+
 
     <h1 class="section-title">Dokumenty współtworzone</h1>
     <div class="documents-grid">
@@ -108,6 +115,17 @@ Dokumenty
         {% empty %}
         <p class="empty-list-info">Brak dokumentów, które ktoś Ci udostępnił.</p>
         {% endfor %}
+    </div>
+    <div class="pagination">
+        {% if shared_documents.has_previous %}
+            <a class="page-arrow" href="?page2={{ shared_documents.previous_page_number }}">&lt;</></a>
+        {% endif %}
+
+        <span class="page-info">Strona {{ shared_documents.number }} z {{ shared_documents.paginator.num_pages }}</span>
+
+        {% if shared_documents.has_next %}
+            <a class="page-arrow" href="?page2={{ shared_documents.next_page_number }}">&gt;</a>
+        {% endif %}
     </div>
 
     <!-- DODANA SEKCJA STOPKI -->

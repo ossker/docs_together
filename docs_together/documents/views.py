@@ -10,16 +10,38 @@ from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
 from bs4 import BeautifulSoup
 from django.contrib.auth import get_user_model
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 User = get_user_model()
 
 @login_required
 def view_documents(request):
-    owned_documents = Document.objects.filter(owner=request.user)
-    shared_documents = Document.objects.filter(
-        collaborators=request.user
-    ).exclude(owner=request.user).distinct()
-    return render(request, 'documents/documents.html', {'owned_documents': owned_documents, 'shared_documents': shared_documents})
+
+    def paginate(request, queryset, param_name='page', per_page=3):
+        paginator = Paginator(queryset, per_page)
+        page_number = request.GET.get(param_name)
+        try:
+            page_obj = paginator.page(page_number)
+        except PageNotAnInteger:
+            page_obj = paginator.page(1)
+        except EmptyPage:
+            page_obj = paginator.page(paginator.num_pages)
+        return page_obj
+
+    owned_list = Document.objects.filter(owner=request.user)
+    shared_list = Document.objects.filter(collaborators=request.user).exclude(owner=request.user).distinct()
+
+    owned_documents = paginate(request, owned_list, 'page')
+    shared_documents = paginate(request, shared_list, 'page2')
+
+    return render(
+        request,
+        'documents/documents.html',
+        {
+            'owned_documents': owned_documents,
+            'shared_documents': shared_documents
+        }
+    )
 
 
 @login_required
