@@ -14,6 +14,7 @@ urlpatterns = [
     path('<uuid:document_id>/changelogs/<uuid:document_changelog_id>', views.view_document_changelog, name='view_document_changelog'),
     path('<uuid:document_id>/ai/summarize', ai_views.summarize, name='document_ai_summarize'),
     path('<uuid:document_id>/ai/generate', ai_views.generate_text, name='document_ai_generate'),
+    path('<uuid:document_id>/ai/improve_style', ai_views.improve_style, name='improve_style'),
     path("<uuid:document_id>/export", views.export_document, name="export_document"),
     path("<uuid:document_id>/remove_collaborator/<uuid:user_id>", views.remove_collaborator, name="remove_collaborator"),
     path('join/<uuid:token>/', views.join_document, name='join_document'),

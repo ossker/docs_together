@@ -91,3 +91,92 @@ def generate_text(request, document_id):
         return JsonResponse({"ok": False, "error": "Błąd komunikacji z API"}, status=500)
 
     return JsonResponse({"ok": True, "result": result})
+
+def call_gemini_improve_style(html_content: str) -> str:
+
+    api_key = "AIzaSyAgrXmDDpajd326Hz_Eo_GuYf1Ixy1q1vk"
+
+    if not api_key:
+        # jeśli masz klucz wpisany "na sztywno" jak w poprzednim kodzie, możesz zamiast tego:
+        # api_key = "TWÓJ_KLUCZ"
+        raise RuntimeError("Brak GEMINI_API_KEY")
+
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        "gemini-2.5-flash:generateContent"
+        f"?key={api_key}"
+    )
+
+    prompt = (
+        "Otrzymasz zawartość dokumentu w HTML.\n"
+        "Twoim zadaniem jest poprawienie błędów językowych i stylistycznych, "
+        "z zachowaniem sensu tekstu oraz struktury dokumentu (nagłówki, akapity, listy itd.).\n\n"
+        "ZASADY FORMATOWANIA:\n"
+        "- Zwróć wynik w HTML.\n"
+        "- Fragmenty tekstu, które ZMIENIASZ lub DODAJESZ, otaczaj znacznikiem "
+        "<span class=\"ai-style-change\">…</span>.\n"
+        "- Fragmenty, których nie zmieniasz, pozostaw IDENTYCZNE jak w wejściu.\n"
+        "- Nie dodawaj żadnych komentarzy, opisów ani znaczników spoza treści dokumentu.\n\n"
+        "Wejściowy HTML dokumentu:\n\n"
+        f"{html_content}"
+    )
+
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt}
+                ]
+            }
+        ]
+    }
+
+    response = requests.post(
+        url,
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(payload),
+        timeout=60,
+    )
+    response.raise_for_status()
+    data = response.json()
+
+    try:
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError):
+        return ""
+
+@require_POST
+@login_required
+@owner_or_collaborator_required
+def improve_style(request, document_id):
+    """
+    Przyjmuje cały dokument (HTML) i zwraca HTML z poprawionym stylem,
+    gdzie zmienione fragmenty są oznaczone <span class="ai-style-change">...</span>.
+    """
+    try:
+        body = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return JsonResponse({"ok": False, "error": "Nieprawidłowe dane wejściowe"}, status=400)
+
+    content = body.get("content", "").strip()
+    if not content:
+        return JsonResponse({"ok": False, "error": "Brak treści dokumentu"}, status=400)
+
+    Document.objects.filter(pk=document_id).first()
+
+    try:
+        improved_html = call_gemini_improve_style(content)
+    except requests.RequestException:
+        return JsonResponse({"ok": False, "error": "Błąd komunikacji z modelem AI"}, status=502)
+    except RuntimeError as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+    if not improved_html:
+        return JsonResponse({"ok": False, "error": "Brak odpowiedzi od AI"}, status=500)
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "styled_html": improved_html,
+        }
+    )
