@@ -15,42 +15,55 @@ let fontList = [ "Arial", "Verdana", "Times New Roman", "Garamond", "Georgia", "
 const A4_HEIGHT_PX = 1122;
 
 // ======= OBSERVER STRON =======
+const pageDebounceTimers = new WeakMap();
+
+function debounce(func, delay) {
+  let timeout;
+  return function(...args) {
+    const context = this;
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(context, args), delay);
+  };
+}
+
+// ======= OBSERVER STRON (Z POPRAWKĄ) =======
 const observePage = (page) => {
   const observer = new MutationObserver(() => {
-    if (page.classList.contains("newly-created")) return;
+    if (pageDebounceTimers.has(page)) {
+      clearTimeout(pageDebounceTimers.get(page));
+    }
 
-    const allPages = Array.from(writingArea.querySelectorAll(".page"));
-    if (allPages.length === 1) return;
+    pageDebounceTimers.set(page, setTimeout(() => {
+      if (page.classList.contains("newly-created")) return;
 
-    const isEmpty =
-      page.innerText.trim() === "" &&
-      page.querySelectorAll("img, video, iframe, div").length === 0;
+      const allPages = Array.from(writingArea.querySelectorAll(".page"));
+      if (allPages.length <= 1) return;
 
-    if (isEmpty) {
-      const currentIndex = allPages.indexOf(page);
-      const previousPage = allPages[currentIndex - 1];
+      const isEmpty =
+        page.innerText.trim() === "" &&
+        page.querySelectorAll("img, video, iframe, div, table").length === 0;
 
-      const isPageActive = document.activeElement === page;
+      if (isEmpty) {
+        const currentIndex = allPages.indexOf(page);
+        const previousPage = allPages[currentIndex - 1];
+        const isPageActive = document.activeElement === page;
 
-      page.remove();
+        observer.disconnect();
+        page.remove();
 
-      if (isPageActive && previousPage) {
-        previousPage.focus();
-        const range = document.createRange();
-        const sel = window.getSelection();
+        if (isPageActive && previousPage) {
+          previousPage.focus();
+          const range = document.createRange();
+          const sel = window.getSelection();
 
-        if (previousPage.lastChild) {
           range.selectNodeContents(previousPage);
           range.collapse(false);
-        } else {
-          const br = document.createElement("br");
-          previousPage.appendChild(br);
-          range.setStartAfter(br);
+
+          sel.removeAllRanges();
+          sel.addRange(range);
         }
-        sel.removeAllRanges();
-        sel.addRange(range);
       }
-    }
+    }, 100));
   });
 
   observer.observe(page, {
@@ -71,70 +84,121 @@ const createNewPage = (initialContent = "") => {
   observePage(page);
   page.focus();
 
-  setTimeout(() => page.classList.remove("newly-created"), 50);
+  setTimeout(() => {
+    page.classList.remove("newly-created");
+  }, 50);
 
   return page;
 };
 
 // ======= SPRAWDZANIE PRZEPŁYWU TEKSTU =======
 const checkPageOverflow = (e) => {
-    const triggerPage = e.target.closest(".page");
+    let triggerPage;
+    if (e && e.target && e.target.closest) {
+        triggerPage = e.target.closest(".page");
+    } else if (document.activeElement) {
+        triggerPage = document.activeElement.closest(".page");
+    }
+    if (!triggerPage) triggerPage = writingArea.querySelector(".page");
     if (!triggerPage) return;
 
     let allPages = Array.from(writingArea.querySelectorAll(".page"));
     let startIndex = allPages.indexOf(triggerPage);
-    if (startIndex === -1) return;
+    if (startIndex === -1) startIndex = 0;
 
     for (let i = startIndex; i < allPages.length; i++) {
         const currentPage = allPages[i];
         
-        while (currentPage.scrollHeight > currentPage.clientHeight) {
-            let nextPage = allPages[i + 1];
+        let loopSafetyCounter = 0; 
+        const MAX_LOOPS = 100; 
 
+        while (currentPage.scrollHeight > currentPage.clientHeight) {
+            
+            loopSafetyCounter++;
+            if (loopSafetyCounter > MAX_LOOPS) {
+                break;
+            }
+
+            if (currentPage.childNodes.length === 0) break;
+
+            let nextPage = allPages[i + 1];
             if (!nextPage) {
                 nextPage = createNewPage();
                 allPages.push(nextPage);
             }
 
-            const fragment = document.createDocumentFragment();
-            
-            while (currentPage.scrollHeight > currentPage.clientHeight && currentPage.lastChild) {
-                fragment.insertBefore(currentPage.lastChild, fragment.firstChild);
-            }
+            const lastChild = currentPage.lastChild;
 
-            if (fragment.childNodes.length > 0) {
-                nextPage.insertBefore(fragment, nextPage.firstChild);
-            } else {
-                break;
+            if (currentPage.childNodes.length > 1) {
+                nextPage.prepend(lastChild);
             }
+            else {
+                const moved = moveDeepContent(lastChild, nextPage);
+                
+                if (!moved) {
+                    break;
+                }
+            }
+        }
+        
+        if (currentPage.childNodes.length === 0 && allPages.length > 1) {
         }
     }
 };
 
-
-// ======= OBSŁUGA ZAZNACZANIA CAŁOŚCI (CTRL+A) =======
-const handleSelectAll = (e) => {
-    if (e.key.toLowerCase() === 'a' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-
-        const selection = window.getSelection();
-        if (!selection) return;
-
-        const firstPage = writingArea.querySelector(".page:first-child");
-        const lastPage = writingArea.querySelector(".page:last-child");
-
-        if (!firstPage || !lastPage) return;
-
-        const range = document.createRange();
-
-        range.setStart(firstPage, 0);
-
-        range.setEnd(lastPage, lastPage.childNodes.length);
-
-        selection.removeAllRanges();
-        selection.addRange(range);
+function moveDeepContent(sourceNode, targetPage) {
+    if (sourceNode.nodeType === Node.TEXT_NODE) {
+        const text = sourceNode.nodeValue;
+        const lastSpace = text.lastIndexOf(' ');
+        
+        if (lastSpace > -1) {
+            const textToKeep = text.substring(0, lastSpace);
+            const textToMove = text.substring(lastSpace);
+            
+            sourceNode.nodeValue = textToKeep;
+            
+            if (targetPage.firstChild && targetPage.firstChild.nodeType === Node.TEXT_NODE) {
+                targetPage.firstChild.nodeValue = textToMove + targetPage.firstChild.nodeValue;
+            } else {
+                targetPage.prepend(document.createTextNode(textToMove));
+            }
+            return true; 
+        } else {
+            if (text.trim().length > 0) {
+                 targetPage.prepend(sourceNode);
+                 return true;
+            }
+            return false;
+        }
     }
-};
+    
+    else if (sourceNode.nodeType === Node.ELEMENT_NODE) {
+        if (sourceNode.childNodes.length === 0) {
+            targetPage.prepend(sourceNode);
+            return true;
+        }
+
+        let targetContainer = targetPage.firstChild;
+        
+        if (!targetContainer || targetContainer.nodeName !== sourceNode.nodeName) {
+            targetContainer = sourceNode.cloneNode(false);
+            targetContainer.innerHTML = '';
+            targetPage.prepend(targetContainer);
+        }
+
+        const childToMove = sourceNode.lastChild;
+
+        targetContainer.prepend(childToMove);
+
+        if (sourceNode.childNodes.length === 0) {
+            sourceNode.remove();
+        }
+        
+        return true;
+    }
+
+    return false;
+}
 
 const handleMultiPageInput = (e) => {
     if (e.ctrlKey || e.altKey || e.metaKey) {
@@ -177,6 +241,24 @@ const handleMultiPageInput = (e) => {
     }
 };
 
+// ======= OBSŁUGA ZAZNACZANIA CAŁOŚCI (CTRL+A) =======
+const handleSelectAll = (e) => {
+    if (e.key.toLowerCase() === 'a' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        const selection = window.getSelection();
+        if (!selection) return;
+        const firstPage = writingArea.querySelector(".page:first-child");
+        const lastPage = writingArea.querySelector(".page:last-child");
+        if (!firstPage || !lastPage) return;
+        const range = document.createRange();
+        range.setStart(firstPage, 0);
+        range.setEnd(lastPage, lastPage.childNodes.length);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+};
+
+
 // ======= OBSŁUGA ZAZNACZANIA MYSZKĄ NA WIELU STRONACH =======
 const enableFinalCrossPageSelection = () => {
     let isSelecting = false;
@@ -184,15 +266,12 @@ const enableFinalCrossPageSelection = () => {
 
     writingArea.addEventListener('mousedown', (e) => {
         e.preventDefault();
-
         const range = document.caretRangeFromPoint(e.clientX, e.clientY);
-
         if (range) {
             const selection = window.getSelection();
             selection.removeAllRanges();
             selection.addRange(range);
         }
-
         isSelecting = true;
         startRange = range;
     });
@@ -201,15 +280,11 @@ const enableFinalCrossPageSelection = () => {
         if (!isSelecting || !startRange) {
             return;
         }
-
         const currentRange = document.caretRangeFromPoint(e.clientX, e.clientY);
         if (!currentRange) return;
-
         const selection = window.getSelection();
         const newRange = document.createRange();
-
         const isBackwards = startRange.compareBoundaryPoints(Range.START_TO_START, currentRange) > 0;
-
         if (isBackwards) {
             newRange.setStart(currentRange.startContainer, currentRange.startOffset);
             newRange.setEnd(startRange.startContainer, startRange.startOffset);
@@ -217,7 +292,6 @@ const enableFinalCrossPageSelection = () => {
             newRange.setStart(startRange.startContainer, startRange.startOffset);
             newRange.setEnd(currentRange.startContainer, currentRange.startOffset);
         }
-
         selection.removeAllRanges();
         selection.addRange(newRange);
     });
@@ -234,13 +308,11 @@ const updateToolbar = () => {
         const isActive = document.queryCommandState(command);
         button.classList.toggle('active', isActive);
     });
-
     alignButtons.forEach(button => {
         const command = button.id;
         const isActive = document.queryCommandState(command);
         button.classList.toggle('active', isActive);
     });
-    
 };
 
 // ======= INICJALIZACJA =======
@@ -249,6 +321,8 @@ const initializer = (initialHtmlContent) => {
     highlighter(spacingButtons, true);
     highlighter(formatButtons, false);
     highlighter(scriptButtons, true);
+
+    const debouncedCheckPageOverflow = debounce(checkPageOverflow, 200);
 
     fontList.forEach((value) => {
         let option = document.createElement("option");
@@ -264,13 +338,10 @@ const initializer = (initialHtmlContent) => {
         fontSizeRef.appendChild(option);
     }
     fontSizeRef.value = 3;
-
     writingArea.innerHTML = "";
-
     if (initialHtmlContent && initialHtmlContent.trim() !== "") {
       const tempDiv = document.createElement("div");
       tempDiv.innerHTML = initialHtmlContent;
-
       if (tempDiv.querySelector(".page")) {
         writingArea.innerHTML = initialHtmlContent;
       } else {
@@ -279,21 +350,17 @@ const initializer = (initialHtmlContent) => {
     } else {
       createNewPage();
     }
-
     writingArea.querySelectorAll(".page").forEach(observePage);
-
-    writingArea.addEventListener("input", checkPageOverflow);
+    writingArea.addEventListener("input", debouncedCheckPageOverflow);
     writingArea.addEventListener("paste", handlePaste);
     writingArea.addEventListener("keydown", handleSelectAll, true);
     writingArea.addEventListener("keydown", handleMultiPageInput, true);
     enableFinalCrossPageSelection();
-
-    writingArea.addEventListener('dragstart', (e) => e.preventDefault());
-
+    writingArea.addEventListener('dragstart', (e) => {
+      e.preventDefault();
+    });
     writingArea.addEventListener('mouseup', updateToolbar); 
     writingArea.addEventListener('keyup', updateToolbar); 
-
-
     const firstPage = writingArea.querySelector(".page");
     if (firstPage) firstPage.focus();
     updateToolbar(); 
@@ -349,7 +416,6 @@ const handlePaste = (e) => {
     e.preventDefault();
     const clipboardData = e.clipboardData;
     if (!clipboardData) return;
-
     const imageItem = Array.from(clipboardData.items).find(item => item.type.startsWith("image/"));
     if (imageItem) {
         const file = imageItem.getAsFile();
@@ -368,7 +434,6 @@ const handlePaste = (e) => {
         }
         return;
     }
-
     const pastedHtml = clipboardData.getData("text/html");
     if (pastedHtml && pastedHtml.includes('class="page"')) {
         document.execCommand("insertHTML", false, pastedHtml);
@@ -392,7 +457,6 @@ const handlePaste = (e) => {
             }
         }
     }
-
     setTimeout(() => {
         const activePage = document.activeElement.closest('.page');
         if (activePage) {
@@ -440,7 +504,6 @@ function makeImageResizable(img) {
     wrapper.appendChild(handle);
     handles.push(handle);
   });
-
   if (!document.getElementById("resize-style")) {
     const style = document.createElement("style");
     style.id = "resize-style";
@@ -456,7 +519,6 @@ function makeImageResizable(img) {
     `;
     document.head.appendChild(style);
   }
-
   let isResizing, currentHandle, startX, startY, startWidth;
   img.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -525,7 +587,6 @@ writingArea.addEventListener("drop", (e) => {
   const draggedWrapper = window.draggedElement;
   const dropTargetPage = e.target.closest(".page");
   if (!dropTargetPage) return;
-
   const range = document.caretRangeFromPoint(e.clientX, e.clientY);
   if (range) {
     range.deleteContents();
@@ -543,9 +604,6 @@ writingArea.addEventListener("drop", (e) => {
     checkPageOverflow({ target: draggedWrapper });
   }, 50);
 });
-
-
-
 
 // ======= MENU KONTEKSTOWE: MINI TOOLBAR + AKCJE =======
 if (writingArea) {
