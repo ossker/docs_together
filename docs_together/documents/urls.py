@@ -17,6 +17,7 @@ urlpatterns = [
     path('<uuid:document_id>/ai/improve_style', ai_views.improve_style, name='improve_style'),
     path("<uuid:document_id>/export", views.export_document, name="export_document"),
     path("<uuid:document_id>/remove_collaborator/<uuid:user_id>", views.remove_collaborator, name="remove_collaborator"),
+    path("<uuid:document_id>/leave", views.leave_document, name="leave_document"),
     path('join/<uuid:token>/', views.join_document, name='join_document'),
     path('create', views.create_document, name='create_document'),
     path("import", views.import_document, name="import_document"),

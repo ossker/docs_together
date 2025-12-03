@@ -95,12 +95,13 @@ Dokumenty
             </div>
             <div class="doc-actions">
                 <a href="/documents/{{ document.id }}" class="btn btn-primary">Otwórz</a>
-                <a href="/documents/{{ document.id }}/export" class="btn btn-primary-outline"><i class="fa-solid fa-download"></i> Pobierz</a>
+                <a href="{% url 'documents:export_document' document.id %}" class="btn btn-primary-outline"><i class="fa-solid fa-download"></i> Pobierz</a>
                 <a href="/documents/{{ document.id }}/changelogs" class="btn btn-primary-outline">Historia zmian</a>
-                <!-- Założenie: istnieje URL do opuszczania dokumentu -->
-                <form method="POST" action="#">
+                <form method="POST" action="{% url 'documents:leave_document' document.id %}" onsubmit="return confirm('Na pewno chcesz opuścić ten dokument?');">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-secondary-outline">Odejdź(?)</button>
+                    <button type="submit" class="btn btn-secondary-outline">
+                        <i class="fa-solid fa-right-from-bracket"></i> Opuść
+                    </button>
                 </form>
             </div>
         </div>

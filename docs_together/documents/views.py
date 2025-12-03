@@ -56,7 +56,7 @@ def join_document(request, token):
     invitation.used = True
     invitation.save()
 
-    return redirect("documents:document", doc_id=document.id)
+    return redirect("documents:document", document_id=document.id)
 
 
 @csrf_exempt
@@ -212,3 +212,17 @@ def remove_collaborator(request, document_id, user_id):
 
         document.collaborators.remove(user_to_remove)
     return redirect('documents:documents')
+
+@login_required
+@owner_or_collaborator_required
+def leave_document(request, document_id):
+    document = get_object_or_404(Document, pk=document_id)
+
+    if document.owner == request.user:
+        return JsonResponse({"error": "Właściciel nie może opuścić własnego dokumentu."}, status=400)
+
+    if request.method == "POST":
+        document.collaborators.remove(request.user)
+        return redirect("documents:documents")
+
+    return JsonResponse({"error": "invalid method"}, status=405)
