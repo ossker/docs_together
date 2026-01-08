@@ -1,0 +1,162 @@
+/* --- START OF FILE changelogs.css --- */
+
+:root {
+    --primary-color: #0d6efd;
+    --secondary-color: #6c757d;
+    --light-gray-color: #f8f9fa;
+    --border-color: #dee2e6;
+    --text-color: #212529;
+    --white-color: #ffffff;
+    --card-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    --hover-shadow: 0 8px 16px rgba(0,0,0,0.12);
+}
+
+body {
+    background-color: var(--light-gray-color);
+    font-family: 'Poppins', sans-serif;
+    color: var(--text-color);
+}
+
+.changelog-wrapper {
+    max-width: 900px; /* Węższy kontener dla lepszej czytelności listy */
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+/* Header Section */
+.changelog-header {
+    text-align: center;
+    margin-bottom: 40px;
+    position: relative;
+}
+
+.back-btn-wrapper {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.changelog-header h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0 0 5px 0;
+}
+
+.changelog-header .doc-subtitle {
+    font-size: 1.1rem;
+    color: var(--secondary-color);
+    font-weight: 500;
+}
+
+/* List Styles */
+.changelog-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.changelog-card {
+    background-color: var(--white-color);
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    padding: 20px 25px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-left: 5px solid var(--primary-color);
+}
+
+.changelog-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--hover-shadow);
+}
+
+.card-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.icon-box {
+    width: 45px;
+    height: 45px;
+    background-color: #e0e9ff; /* Jasny niebieski tło */
+    color: var(--primary-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.meta-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.meta-date {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 4px;
+}
+
+.meta-editor {
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.meta-editor i {
+    font-size: 0.8rem;
+}
+
+.card-actions {
+    padding-left: 20px;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--secondary-color);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.empty-state p {
+    font-size: 1.1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .back-btn-wrapper {
+        position: relative;
+        transform: none;
+        top: 0;
+        margin-bottom: 15px;
+        text-align: left;
+    }
+    
+    .changelog-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .card-actions {
+        width: 100%;
+        padding-left: 0;
+        text-align: right;
+    }
+}
